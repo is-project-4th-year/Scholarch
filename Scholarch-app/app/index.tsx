@@ -16,7 +16,7 @@ export default function Index() {
         alignItems: "center",
       }}
     >
-      <Text>Loading.......</Text>
+      <Text>Hmmm.......</Text>
       <ActivityIndicator size="large" color="#0000ff" />
     </View>
   );

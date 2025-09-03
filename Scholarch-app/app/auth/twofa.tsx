@@ -4,7 +4,7 @@
 
 
 
-export default function TwoFAScreen() {
+export default function twofa() {
     return(
         null
     )

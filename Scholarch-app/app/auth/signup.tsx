@@ -2,7 +2,7 @@
 
 
 
-export default function SignupScreen() {
+export default function signup() {
     return(
         null
     )
