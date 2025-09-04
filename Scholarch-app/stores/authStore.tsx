@@ -48,12 +48,14 @@ export const useAuthStore = create<AuthStore>((set) => ({
       onAuthStateChanged(auth, async (firebaseUser: User | null) => {
         if (!firebaseUser) {
           set({ user: null, authStatus: AuthStatus.UNAUTHENTICATED, loading: false });
+          console.log("No user logged in");
           return resolve();
         }
 
         // Reload user to check verification
         await firebaseUser.reload();
         const emailVerified = firebaseUser.emailVerified;
+        console.log("User logged in:", firebaseUser.email, "Email verified:", emailVerified);
 
         // Get user profile from Firestore
         const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
@@ -66,6 +68,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
           course: profileData?.course,
           profileComplete: profileData?.profileComplete || false,
         };
+        console.log("User profile data:", userProfile);
 
         // Decide authStatus
         let nextStatus: AuthStatus;
@@ -86,5 +89,6 @@ export const useAuthStore = create<AuthStore>((set) => ({
   logout: async () => {
     await auth.signOut();
     set({ user: null, authStatus: AuthStatus.UNAUTHENTICATED });
+    console.log("User logged out")
   },
 }));
