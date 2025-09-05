@@ -4,7 +4,7 @@ import {  Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import {Button} from "react-native-paper";
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../FirebaseConfig";
+import { auth } from "../../lib/FirebaseConfig";
 import { Alert } from "react-native";
 
 
