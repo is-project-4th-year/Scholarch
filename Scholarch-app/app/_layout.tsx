@@ -6,7 +6,7 @@ export default function RootLayout() {
 
     if (authStatus === "UNAUTHENTICATED") {
         return (
-            <Stack>
+            <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name = "auth"/>
             </Stack>
         )
@@ -14,7 +14,7 @@ export default function RootLayout() {
 
     if (authStatus === "AUTHENTICATED") {
         return (
-            <Stack>
+            <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name = "auth"/>
             </Stack>
         )        
