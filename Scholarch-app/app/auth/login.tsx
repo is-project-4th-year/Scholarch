@@ -2,20 +2,44 @@ import { AuthStatus, useAuthStore } from "@/stores/authStore";
 import { router } from "expo-router";
 import {  Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import {Button} from "react-native-paper";
+import { useState } from "react";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../FirebaseConfig";
+import { Alert } from "react-native";
 
 
 export default function login() {
-    const login = useAuthStore((state) => state.login);    
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const login = useAuthStore((state) => state.login);
+
+    const handleLogin = async () => {
+    try {
+      const userCred = await signInWithEmailAndPassword(auth, email, password);
+      console.log("Login success:", userCred.user.uid);
+      router.push("/app/home");
+
+      // update Zustand store
+      login();
+
+      // (Optional) If you want explicit navigation instead of relying on layout:
+      // router.replace("/app");
+    } catch (error: any) {
+      console.error("Login error:", error);
+      Alert.alert("Login Failed", error.message);
+    }
+  };
     return(
         <View style={styles.container}>
             <Text>Login Page</Text>
-            <TextInput placeholder="Username" style={styles.textinput} />
-            <TextInput placeholder="Password" secureTextEntry style={styles.textinput} />
+            <TextInput placeholder="Email" onChangeText= {setEmail}style={styles.textinput} />
+            <TextInput placeholder="Password" onChangeText={setPassword} secureTextEntry style={styles.textinput} />
             <Button 
                 mode = "contained"
                 onPress={() =>{
+                    handleLogin();
                     console.log("AuthStatus in store:", useAuthStore.getState().authStatus);
-                    login();
+                    
                 }} 
             > Login
                 </Button>
@@ -26,7 +50,7 @@ export default function login() {
                     router.push("/auth/signup")
                 }}
             >
-                Don't have an account? Sign Up
+                New to scholarch? Sign Up
 
             </Button>
             
