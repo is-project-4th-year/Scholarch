@@ -79,7 +79,8 @@ export default function login() {
         </Text>
       </TouchableOpacity>
 
-      <Button
+
+       <Button
         mode="contained"
         onPress={() => {
           handleLogin();
@@ -133,4 +134,5 @@ const styles = StyleSheet.create({
     width: 200,
     paddingHorizontal: 10,
   },
+  
 });

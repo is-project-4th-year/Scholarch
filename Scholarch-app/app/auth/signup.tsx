@@ -3,7 +3,7 @@ import React from "react";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Button, DividerProps, TextInput } from "react-native-paper";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { auth } from "../../lib/FirebaseConfig";
 import { useAuthStore } from "@/stores/authStore";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,6 +26,8 @@ export default function signup() {
         email,
         password
       );
+      await sendEmailVerification(userCredentials.user)
+      console.log("Email verification sent")
       console.log("Sign up successful", userCredentials.user.uid);
       login();
       router.push("/auth/login");
