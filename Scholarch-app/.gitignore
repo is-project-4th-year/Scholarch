@@ -2,6 +2,8 @@
 
 # dependencies
 node_modules/
+node_modules/@babel/
+node_modules/react-native/
 
 # Expo
 .expo/
