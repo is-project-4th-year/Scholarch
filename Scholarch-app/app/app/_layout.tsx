@@ -1,6 +1,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { useColorScheme } from "react-native";
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 export default function AppLayout() {
   const colorScheme = useColorScheme();
@@ -26,6 +27,9 @@ export default function AppLayout() {
         name="index"
         options={{
           title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home" size={24} color="black" />
+          )
         }}
       />
 
@@ -34,6 +38,9 @@ export default function AppLayout() {
         name="input"
         options={{
           title: "Input",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="newspaper-outline" size={24} color="black" />
+          )
         }}
       />
 
@@ -42,6 +49,9 @@ export default function AppLayout() {
         name="progress"
         options={{
           title: "Progress",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="stats-chart-outline" size={24} color="black" />
+          )
         }}
       />
 
@@ -50,6 +60,8 @@ export default function AppLayout() {
         name="profile"
         options={{
           title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-circle-outline" size={24} color="black" />          )
         }}
       />
     </Tabs>
