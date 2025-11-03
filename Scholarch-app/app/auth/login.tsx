@@ -17,7 +17,7 @@ export default function login() {
     try {
       const userCred = await signInWithEmailAndPassword(auth, email, password);
       console.log("Login success:", userCred.user.uid);
-      router.push("/app/home");
+      router.push("/app/index");
 
       // update Zustand store
       login();
