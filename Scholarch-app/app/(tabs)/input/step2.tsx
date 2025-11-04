@@ -17,12 +17,13 @@ export default function Step2() {
 
       {/* Resources */}
       <View style={styles.row}>
-        <Text style={styles.label}>Do you use additional study resources?</Text>
+        <Text>Do you have internet access?</Text>
         <Switch
-          value={form.resources}
-          onValueChange={(v) => updateField("resources", v)}
+          value={form.internet}
+          onValueChange={(v) => updateField("internet", v)}
         />
       </View>
+
 
       {/* Extracurricular */}
       <View style={styles.row}>

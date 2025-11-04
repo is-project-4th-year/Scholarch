@@ -39,7 +39,7 @@ export default function Step3() {
       await setDoc(doc(db, "users", user.uid, "behavior", "data"), dataToSave);
       resetForm();
       Alert.alert("Success", "Your learning data has been saved.");
-      router.push("/app/profile");
+      router.push("/input/summary");
     } catch (error: any) {
       console.error("Error saving behavior data:", error);
       Alert.alert("Error", "Failed to save data. Try again later.");

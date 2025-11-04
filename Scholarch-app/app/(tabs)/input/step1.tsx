@@ -1,13 +1,16 @@
 // app/(tabs)/input/step1.tsx
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
-import { Text, Button, Title, Paragraph } from "react-native-paper";
+import { Text, Button, TextInput, Title, Paragraph } from "react-native-paper";
 import Slider from "@react-native-community/slider";
 import { Picker } from "@react-native-picker/picker";
 import { router } from "expo-router";
+import { useBehaviorFormStore } from "../../../stores/behaviorFormStore";
 
 export default function Step1() {
-  const [studyHours, setStudyHours] = useState(0);
+  const { updateField, form } = useBehaviorFormStore();
+
+   const [studyHours, setStudyHours] = useState(0);
   const [attendance, setAttendance] = useState(50);
   const [assignmentCompletion, setAssignmentCompletion] = useState(50);
   const [motivation, setMotivation] = useState("Medium");
@@ -18,39 +21,32 @@ export default function Step1() {
       <Paragraph style={styles.subtitle}>Let's start with your study routine</Paragraph>
 
       {/* Study Hours */}
-      <Text style={styles.label}>Study Hours per Week: {studyHours}</Text>
-      <Slider
-        style={styles.slider}
-        minimumValue={0}
-        maximumValue={40}
-        step={1}
-        value={studyHours}
-        onValueChange={setStudyHours}
-        minimumTrackTintColor="#007AFF"
+      <Text style={styles.label}>Study Hours per Week</Text>
+      <TextInput
+        label="Study Hours"
+        keyboardType="numeric"
+        value={String(form.studyHours)}
+        onChangeText={(v) => updateField("studyHours", parseInt(v) || 0)}
       />
+
 
       {/* Attendance */}
-      <Text style={styles.label}>Attendance: {attendance}%</Text>
-      <Slider
-        style={styles.slider}
-        minimumValue={0}
-        maximumValue={100}
-        step={1}
-        value={attendance}
-        onValueChange={setAttendance}
-        minimumTrackTintColor="#007AFF"
+      <Text style={styles.label}>Attendance%</Text>
+      <TextInput
+        label="Attendance"
+        keyboardType="numeric"
+        value={String(form.attendance)}
+        onChangeText={(v) => updateField("attendance", parseInt(v) || 0)}
       />
 
+
       {/* Assignment Completion */}
-      <Text style={styles.label}>Assignment Completion: {assignmentCompletion}%</Text>
-      <Slider
-        style={styles.slider}
-        minimumValue={0}
-        maximumValue={100}
-        step={1}
-        value={assignmentCompletion}
-        onValueChange={setAssignmentCompletion}
-        minimumTrackTintColor="#007AFF"
+      <Text style={styles.label}>Assignment Completion%</Text>
+      <TextInput
+        label="Assignment Completion"
+        keyboardType="numeric"
+        value={String(form.assignmentCompletion)}
+        onChangeText={(v) => updateField("assignmentCompletion", parseInt(v) || 0)}
       />
 
       {/* Motivation */}
