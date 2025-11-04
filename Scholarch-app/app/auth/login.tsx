@@ -24,6 +24,8 @@ export default function login() {
       console.log("Login success:", user.uid);
       console.log("Store user:", useAuthStore.getState().user?.email);
 
+      
+
       router.push("../app/index")
       
     
