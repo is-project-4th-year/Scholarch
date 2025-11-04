@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { signOut } from "firebase/auth";
+import { signOut, User } from "firebase/auth";
 import { auth } from "../lib/FirebaseConfig";
 import { router } from "expo-router";
 
@@ -10,29 +10,37 @@ export enum AuthStatus {
 
 interface AuthStore {
   authStatus: AuthStatus;
-  login: () => void;
-  logout: () => void;
+  user: User | null;
+  setUser: (user: User | null) => void;
+  login: (user: User) => void;
+  logout: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthStore>((set) => ({
   authStatus: AuthStatus.UNAUTHENTICATED,
+  user: null,
 
-  login: () =>
-  set((state) => {
-    //console.log("AuthStatus before login:", state.authStatus);
-    return { authStatus: AuthStatus.AUTHENTICATED };
-  }),
+  // Sets user manually when logging in
+  setUser: (user) => set({ user }),
 
-  
+  // Called after Firebase login success
+  login: (user) =>
+    set({
+      authStatus: AuthStatus.AUTHENTICATED,
+      user,
+    }),
+
+  // Logout and reset store
   logout: async () => {
-    try{
+    try {
       await signOut(auth);
-      set((state) => {
-        return  { authStatus: AuthStatus.UNAUTHENTICATED };
+      set({
+        authStatus: AuthStatus.UNAUTHENTICATED,
+        user: null,
       });
-    }catch(error){
+      router.replace("/auth/login"); // optional: return to login
+    } catch (error) {
       console.error("Error signing out:", error);
     }
-  } 
+  },
 }));
-

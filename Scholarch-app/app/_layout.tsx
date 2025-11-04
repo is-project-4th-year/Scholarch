@@ -13,20 +13,20 @@ export default function RootLayout() {
         )
     }
 
-    if (authStatus === "AUTHENTICATED") {
-        if(auth.currentUser && !auth.currentUser.emailVerified){
-            return (
-                <Stack screenOptions={{headerShown: false}}>
-                    <Stack.Screen name = "auth/verfyemail"/>
-                </Stack>
-            )
-        }
-        return (
-            <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name = "app"/>
-            </Stack>
-        )        
-    }
+    // if (authStatus === "AUTHENTICATED") {
+    //     if(auth.currentUser && !auth.currentUser.emailVerified){
+    //         return (
+    //             <Stack screenOptions={{headerShown: false}}>
+    //                 <Stack.Screen name = "auth/verfyemail"/>
+    //             </Stack>
+    //         )
+    //     }
+    //     return (
+    //         <Stack screenOptions={{ headerShown: false }}>
+    //             <Stack.Screen name = "app"/>
+    //         </Stack>
+    //     )        
+    // }
     return <Slot />
     
 }
