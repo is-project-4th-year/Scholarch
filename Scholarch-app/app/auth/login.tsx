@@ -16,11 +16,18 @@ export default function login() {
   const handleLogin = async () => {
     try {
       const userCred = await signInWithEmailAndPassword(auth, email, password);
-      console.log("Login success:", userCred.user.uid);
-      router.push("/app/index");
+      const user = userCred.user;
 
-      // update Zustand store
-      login();
+      // 🔹 keep Zustand in sync with Firebase
+      useAuthStore.getState().login(user);
+
+      console.log("Login success:", user.uid);
+      console.log("Store user:", useAuthStore.getState().user?.email);
+
+      router.push("../app/index")
+      
+    
+    
 
       // (Optional) If you want explicit navigation instead of relying on layout:
       // router.replace("/app");

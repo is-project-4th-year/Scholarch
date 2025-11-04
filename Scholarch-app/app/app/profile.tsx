@@ -107,7 +107,7 @@ export default function profile() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      logout(); // Reset Zustand auth state
+      await useAuthStore.getState().logout();
       router.replace("/auth/login"); // Redirect to login
     } catch (error: any) {
       console.error("Logout error:", error);
