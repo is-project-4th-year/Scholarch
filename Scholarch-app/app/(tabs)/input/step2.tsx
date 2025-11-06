@@ -1,109 +1,83 @@
 import React from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
-import { Text, Switch, Button, Title, Paragraph } from "react-native-paper";
-import Slider from "@react-native-community/slider";
+import { ScrollView, StyleSheet } from "react-native";
+import { Text, Button, RadioButton } from "react-native-paper";
+import { useBehaviorFormStore } from "@/stores/behaviorFormStore";
 import { router } from "expo-router";
-import { useBehaviorFormStore } from "../../../stores/behaviorFormStore";
+import { yesNoLabels,stressLevelLabels } from "@/lib/behaviorLabels";
 
-export default function Step2() {
-  const { form, updateField } = useBehaviorFormStore();
+export default function Step2({ navigation }: any) {
+  const {
+    internet,
+    discussions,
+    onlineCourses,
+    extracurricular,
+    eduTech,
+    stressLevel,
+    updateField,
+  } = useBehaviorFormStore();
+
+  // ✅ Small helper to render Yes/No questions
+  const renderYesNoGroup = (label: string, field: string) => (
+    <>
+      <Text variant="titleMedium" style={styles.label}>{label}</Text>
+      <RadioButton.Group
+        onValueChange={(val: string) => updateField(field as any, Number(val))}
+        value={String((useBehaviorFormStore.getState() as any)[field])}
+      >
+        {yesNoLabels.map((lbl: string, index: number) => (
+          <RadioButton.Item key={index} label={lbl} value={String(index)} />
+        ))}
+      </RadioButton.Group>
+    </>
+  );
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Title style={styles.title}>Step 2 of 3 – Learning Behavior</Title>
-      <Paragraph style={styles.subtitle}>
-        Tell us more about your learning activities
-      </Paragraph>
-
-      {/* Resources */}
-      <View style={styles.row}>
-        <Text>Do you have internet access?</Text>
-        <Switch
-          value={form.internet}
-          onValueChange={(v) => updateField("internet", v)}
-        />
-      </View>
-
-
-      {/* Extracurricular */}
-      <View style={styles.row}>
-        <Text style={styles.label}>Participate in extracurriculars?</Text>
-        <Switch
-          value={form.extracurricular}
-          onValueChange={(v) => updateField("extracurricular", v)}
-        />
-      </View>
-
-      {/* Online Courses */}
-      <View style={styles.row}>
-        <Text style={styles.label}>Take online courses?</Text>
-        <Switch
-          value={form.onlineCourses}
-          onValueChange={(v) => updateField("onlineCourses", v)}
-        />
-      </View>
-
-      {/* Discussions */}
-      <Text style={styles.label}>
-        Discussions frequency (1 – 5): {form.discussions}
+      <Text variant="titleLarge" style={styles.title}>
+        Step 2: Technology & Lifestyle
       </Text>
-      <Slider
-        style={styles.slider}
-        minimumValue={1}
-        maximumValue={5}
-        step={1}
-        value={form.discussions}
-        onValueChange={(v) => updateField("discussions", v)}
-        minimumTrackTintColor="#007AFF"
-      />
 
-      {/* EduTech */}
-      <View style={styles.row}>
-        <Text style={styles.label}>Use educational technology tools?</Text>
-        <Switch
-          value={form.eduTech}
-          onValueChange={(v) => updateField("eduTech", v)}
-        />
-      </View>
+      {renderYesNoGroup("Do you have reliable Internet access?", "internet")}
+      {renderYesNoGroup("Do you often participate in discussions?", "discussions")}
+      {renderYesNoGroup("Do you take online courses?", "onlineCourses")}
+      {renderYesNoGroup("Do you have access to resources?", "resources")}
+      {renderYesNoGroup("Are you engaged in extracurricular activities?", "extracurricular")}
+      {renderYesNoGroup("Do you use educational technology tools?", "eduTech")}
+
+      {/* Stress Level */}
+      <Text variant="titleMedium" style={styles.label}>Stress Level</Text>
+      <RadioButton.Group
+        onValueChange={(val: string) => updateField("stressLevel", Number(val))}
+        value={String(stressLevel)}
+      >
+        {stressLevelLabels.map((label: string, index: number) => (
+          <RadioButton.Item key={index} label={label} value={String(index)} />
+        ))}
+      </RadioButton.Group>
 
       {/* Navigation Buttons */}
-      <View style={styles.buttonRow}>
-        <Button
-          mode="outlined"
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          Back
-        </Button>
-        <Button
-          mode="contained"
-          onPress={() => router.push("/input/step3")}
-          style={styles.nextButton}
-        >
-          Next
-        </Button>
-      </View>
+      <Button
+        mode="outlined"
+        onPress={() => router.replace("/input/step1")}
+        style={styles.button}
+      >
+        Previous
+      </Button>
+
+      <Button
+        mode="contained"
+        onPress={() => router.push("/input/step3")}
+        style={styles.button}
+      >
+        Next
+      </Button>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 4 },
-  subtitle: { marginBottom: 20, color: "#555" },
-  row: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 12,
-  },
-  label: { color: "#333", flex: 1, marginRight: 10 },
-  slider: { width: "100%" },
-  buttonRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 30,
-  },
-  backButton: { flex: 1, marginRight: 10 },
-  nextButton: { flex: 1, backgroundColor: "#007AFF" },
+  title: { marginBottom: 20 },
+  label: { marginTop: 10, marginBottom: 4 },
+  button: { marginTop: 20 },
 });

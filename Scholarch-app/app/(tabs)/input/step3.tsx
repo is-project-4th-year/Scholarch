@@ -1,109 +1,87 @@
 import React, { useState } from "react";
 import { View, StyleSheet, ScrollView, Alert } from "react-native";
-import { TextInput, Text, Button, Title, Paragraph, RadioButton, Switch } from "react-native-paper";
-import { router } from "expo-router";
-import { useBehaviorFormStore } from "../../../stores/behaviorFormStore";
+import { TextInput, Text, Button, ActivityIndicator } from "react-native-paper";
 import { useAuthStore } from "../../../stores/authStore";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../../../lib/FirebaseConfig";
+import { db, auth } from "../../../lib/FirebaseConfig";
+import { useBehaviorFormStore } from "@/stores/behaviorFormStore";
+import { router } from "expo-router";
+import {yesNoLabels, motivationLabels, learningStyleLabels, stressLevelLabels} from "@/lib/behaviorLabels";
 
-export default function Step3() {
-  const { form, resetForm } = useBehaviorFormStore();
-  const { user } = useAuthStore(); // ✅ requires user object in authStore
-  const [saving, setSaving] = useState(false);
+export default function Step3({ navigation }: any) {
+  const form = useBehaviorFormStore();
+  const [loading, setLoading] = useState(false);
 
-  const [gender, setGender] = useState(form.gender);
-  const [learningStyle, setLearningStyle] = useState(form.learningStyle);
-  const [internet, setInternet] = useState(form.internet);
-  const [stressLevel, setStressLevel] = useState(form.stressLevel);
-  const [age, setAge] = useState(form.age);
-
-  const handleSubmit = async () => {
+  const saveToFirestore = async () => {
+    const user = auth.currentUser;
     if (!user) {
-      Alert.alert("Error", "User not logged in.");
+      Alert.alert("Not Logged In", "Please log in before saving your data.");
       return;
     }
 
-    setSaving(true);
     try {
-      const dataToSave = {
+      setLoading(true);
+      const docRef = doc(db, `users/${user.uid}/behavior/data`);
+      await setDoc(docRef, {
         ...form,
-        age,
-        gender,
-        learningStyle,
-        internet,
-        stressLevel,
         lastUpdated: serverTimestamp(),
-      };
+      });
 
-      await setDoc(doc(db, "users", user.uid, "behavior", "data"), dataToSave);
-      resetForm();
-      Alert.alert("Success", "Your learning data has been saved.");
-      router.push("/input/summary");
+      Alert.alert("Success", "Your data has been saved!");
+      setLoading(false);
+      navigation.navigate("home"); // ✅ back to dashboard/home
     } catch (error: any) {
       console.error("Error saving behavior data:", error);
-      Alert.alert("Error", "Failed to save data. Try again later.");
-    } finally {
-      setSaving(false);
+      Alert.alert("Error", "Could not save your data. Try again later.");
+      setLoading(false);
     }
   };
 
+  const renderRow = (label: string, value: string | number) => (
+    <Text style={styles.row}>{`${label}: ${value}`}</Text>
+  );
+
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Title style={styles.title}>Step 3 of 3 – Personal Factors</Title>
-      <Paragraph style={styles.subtitle}>
-        Tell us more about yourself to help personalize predictions
-      </Paragraph>
+      <Text variant="titleLarge" style={styles.title}>
+        Step 3 – Review & Save
+      </Text>
 
-      <TextInput
-        label="Age"
-        value={age}
-        onChangeText={setAge}
-        keyboardType="numeric"
-        style={styles.input}
-      />
+      <Text style={styles.subtitle}>Confirm your inputs before saving:</Text>
 
-      <Text style={styles.label}>Gender</Text>
-      <RadioButton.Group onValueChange={setGender} value={gender}>
-        <View style={styles.row}>
-          <RadioButton value="Male" />
-          <Text>Male</Text>
-          <RadioButton value="Female" />
-          <Text>Female</Text>
-        </View>
-      </RadioButton.Group>
+      {/* ✅ Human-friendly summary */}
+      {renderRow("Study Hours / Week", form.studyHours)}
+      {renderRow("Attendance (%)", form.attendance)}
+      {renderRow("Assignment Completion (%)", form.assignmentCompletion)}
+      {renderRow("Motivation Level", motivationLabels[form.motivation])}
+      {renderRow("Learning Style", learningStyleLabels[form.learningStyle])}
+      {renderRow("Internet Access", yesNoLabels[form.internet])}
+      {renderRow("Resources Access", yesNoLabels[form.resources])}
+      {renderRow("Participates in Discussions", yesNoLabels[form.discussions])}
+      {renderRow("Takes Online Courses", yesNoLabels[form.onlineCourses])}
+      {renderRow(
+        "Extracurricular Activities",
+        yesNoLabels[form.extracurricular]
+      )}
+      {renderRow("Uses EduTech Tools", yesNoLabels[form.eduTech])}
+      {renderRow("Stress Level", stressLevelLabels[form.stressLevel])}
 
-      <TextInput
-        label="Learning Style (e.g. Visual, Auditory)"
-        value={learningStyle}
-        onChangeText={setLearningStyle}
-        style={styles.input}
-      />
-
-      <View style={styles.row}>
-        <Text style={styles.label}>Do you have reliable internet access?</Text>
-        <Switch value={internet} onValueChange={setInternet} />
-      </View>
-
-      <Text style={styles.label}>Stress Level</Text>
-      <RadioButton.Group onValueChange={setStressLevel} value={stressLevel}>
-        <View style={styles.row}>
-          <RadioButton value="Low" />
-          <Text>Low</Text>
-          <RadioButton value="Medium" />
-          <Text>Medium</Text>
-          <RadioButton value="High" />
-          <Text>High</Text>
-        </View>
-      </RadioButton.Group>
+      <Button
+        mode="outlined"
+        onPress={() => router.replace("/input/step2")}
+        style={styles.button}
+        disabled={loading}
+      >
+        Previous
+      </Button>
 
       <Button
         mode="contained"
-        loading={saving}
-        onPress={handleSubmit}
-        style={styles.saveButton}
+        onPress={saveToFirestore}
+        style={styles.button}
+        disabled={loading}
       >
-        Save & Finish
+        {loading ? <ActivityIndicator animating color="#fff" /> : "Save & Finish"}
       </Button>
     </ScrollView>
   );
@@ -111,18 +89,8 @@ export default function Step3() {
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 4 },
-  subtitle: { marginBottom: 20, color: "#555" },
-  input: { marginVertical: 8, backgroundColor: "white" },
-  label: { marginTop: 16, fontWeight: "600" },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 4,
-  },
-  saveButton: {
-    marginTop: 30,
-    backgroundColor: "#007AFF",
-  },
+  title: { marginBottom: 10 },
+  subtitle: { marginBottom: 20 },
+  row: { marginVertical: 4, fontSize: 16 },
+  button: { marginTop: 20 },
 });

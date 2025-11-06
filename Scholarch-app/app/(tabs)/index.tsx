@@ -4,7 +4,7 @@ import { collection, query, orderBy, limit, onSnapshot, doc, getDoc } from "fire
 import { formatDate } from "@/lib/dateUtils";
 import { db } from "@/lib/FirebaseConfig";
 import { useAuthStore } from "@/stores/authStore"; 
-
+import { useBehaviorFormStore } from "@/stores/behaviorFormStore";
 export default function HomeScreen() {
   const [prediction, setPrediction] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -37,6 +37,8 @@ export default function HomeScreen() {
         console.error("Error fetching profile:", err);
         setProfile({ name: "Student", program: "your program" });
       }
+      console.log(useBehaviorFormStore.getState());
+
     };
 
     fetchProfile();

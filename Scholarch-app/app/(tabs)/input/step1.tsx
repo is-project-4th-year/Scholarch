@@ -1,65 +1,85 @@
 // app/(tabs)/input/step1.tsx
-import React, { useState } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
-import { Text, Button, TextInput, Title, Paragraph } from "react-native-paper";
-import Slider from "@react-native-community/slider";
-import { Picker } from "@react-native-picker/picker";
+import React from "react";
+import { View, ScrollView, StyleSheet } from "react-native";
+import { Text, TextInput, Button, RadioButton } from "react-native-paper";
+import { useBehaviorFormStore } from "@/stores/behaviorFormStore";
 import { router } from "expo-router";
-import { useBehaviorFormStore } from "../../../stores/behaviorFormStore";
+import {motivationLabels, learningStyleLabels} from "@/lib/behaviorLabels";
 
-export default function Step1() {
-  const { updateField, form } = useBehaviorFormStore();
-
-   const [studyHours, setStudyHours] = useState(0);
-  const [attendance, setAttendance] = useState(50);
-  const [assignmentCompletion, setAssignmentCompletion] = useState(50);
-  const [motivation, setMotivation] = useState("Medium");
+export default function Step1({ navigation }: any) {
+  const {
+    studyHours,
+    attendance,
+    assignmentCompletion,
+    motivation,
+    learningStyle,
+    updateField,
+  } = useBehaviorFormStore();
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Title style={styles.title}>Step 1 of 3: Study Habits</Title>
-      <Paragraph style={styles.subtitle}>Let's start with your study routine</Paragraph>
+      <Text variant="titleLarge" style={styles.title}>
+        Step 1: Study & Learning Basics
+      </Text>
 
       {/* Study Hours */}
-      <Text style={styles.label}>Study Hours per Week</Text>
       <TextInput
-        label="Study Hours"
+        label="Study Hours per Week"
         keyboardType="numeric"
-        value={String(form.studyHours)}
-        onChangeText={(v) => updateField("studyHours", parseInt(v) || 0)}
+        mode="outlined"
+        value={String(studyHours)}
+        onChangeText={(val) => updateField("studyHours", Number(val))}
+        style={styles.input}
       />
-
 
       {/* Attendance */}
-      <Text style={styles.label}>Attendance%</Text>
       <TextInput
-        label="Attendance"
+        label="Attendance (%)"
         keyboardType="numeric"
-        value={String(form.attendance)}
-        onChangeText={(v) => updateField("attendance", parseInt(v) || 0)}
+        mode="outlined"
+        value={String(attendance)}
+        onChangeText={(val) => updateField("attendance", Number(val))}
+        style={styles.input}
       />
 
-
       {/* Assignment Completion */}
-      <Text style={styles.label}>Assignment Completion%</Text>
       <TextInput
-        label="Assignment Completion"
+        label="Assignment Completion (%)"
         keyboardType="numeric"
-        value={String(form.assignmentCompletion)}
-        onChangeText={(v) => updateField("assignmentCompletion", parseInt(v) || 0)}
+        mode="outlined"
+        value={String(assignmentCompletion)}
+        onChangeText={(val) =>
+          updateField("assignmentCompletion", Number(val))
+        }
+        style={styles.input}
       />
 
       {/* Motivation */}
-      <Text style={styles.label}>Motivation Level</Text>
-      <View style={styles.dropdownContainer}>
-        <Picker selectedValue={motivation} onValueChange={setMotivation}>
-          <Picker.Item label="Low" value="Low" />
-          <Picker.Item label="Medium" value="Medium" />
-          <Picker.Item label="High" value="High" />
-        </Picker>
-      </View>
+      <Text variant="titleMedium" style={styles.label}>
+        Motivation Level
+      </Text>
+      <RadioButton.Group
+        onValueChange={(val) => updateField("motivation", Number(val))}
+        value={String(motivation)}
+      >
+        {motivationLabels.map((label, index) => (
+          <RadioButton.Item key={index} label={label} value={String(index)} />
+        ))}
+      </RadioButton.Group>
 
-      {/* Next Button */}
+      {/* Learning Style */}
+      <Text variant="titleMedium" style={styles.label}>
+        Learning Style
+      </Text>
+      <RadioButton.Group
+        onValueChange={(val) => updateField("learningStyle", Number(val))}
+        value={String(learningStyle)}
+      >
+        {learningStyleLabels.map((label, index) => (
+          <RadioButton.Item key={index} label={label} value={String(index)} />
+        ))}
+      </RadioButton.Group>
+
       <Button
         mode="contained"
         onPress={() => router.push("/input/step2")}
@@ -76,32 +96,16 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  subtitle: {
     marginBottom: 20,
-    color: "#555",
   },
   label: {
-    marginTop: 15,
+    marginTop: 10,
     marginBottom: 4,
-    color: "#333",
-    fontWeight: "500",
   },
-  slider: {
-    width: "100%",
-  },
-  dropdownContainer: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    overflow: "hidden",
-    marginBottom: 20,
+  input: {
+    marginBottom: 15,
   },
   button: {
-    marginTop: 30,
-    backgroundColor: "#007AFF",
+    marginTop: 20,
   },
 });
