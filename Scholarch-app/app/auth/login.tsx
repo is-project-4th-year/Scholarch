@@ -26,7 +26,7 @@ export default function login() {
 
       
 
-      router.push("../app/index")
+      router.push("/profile")
       
     
     
