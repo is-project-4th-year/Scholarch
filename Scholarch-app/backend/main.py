@@ -34,6 +34,49 @@ class BehaviorPayload(BaseModel):
     timestamp: Optional[str] = None
     behavior: Dict[str, Any]
 
+
+# --- Simple recommendation engine ---
+def generate_recommendations(behavior: dict, importances: dict):
+    """Generate actionable recommendations based on student behavior and model insights."""
+    recs = []
+
+    # Extract safe values (use .get to avoid KeyError)
+    study_hours = behavior.get("StudyHours", 0)
+    attendance = behavior.get("Attendance", 0)
+    motivation = behavior.get("Motivation", 1)
+    stress = behavior.get("StressLevel", 1)
+    assignment_completion = behavior.get("AssignmentCompletion", 0)
+    online_courses = behavior.get("OnlineCourses", 0)
+    discussions = behavior.get("Discussions", 0)
+
+    # Apply simple behavioral rules
+    if study_hours < 15:
+        recs.append("Increase weekly study hours to at least 15 hours for better comprehension.")
+    if attendance < 75:
+        recs.append("Attend classes regularly to maintain consistent learning.")
+    if motivation < 1:
+        recs.append("Set clear study goals or use motivation trackers to stay engaged.")
+    if stress > 2:
+        recs.append("High stress levels detected — schedule breaks and rest effectively.")
+    if assignment_completion < 70:
+        recs.append("Ensure timely completion of assignments to reinforce learning.")
+    if online_courses == 0:
+        recs.append("Consider taking short online courses to strengthen weak areas.")
+    if discussions < 2:
+        recs.append("Participate more in study discussions or group work to improve understanding.")
+
+    # Prioritize recommendations for top important features
+    important_feats = sorted(importances.items(), key=lambda x: x[1], reverse=True)[:5]
+    important_names = [f[0] for f in important_feats]
+
+    prioritized_recs = [r for r in recs if any(name.lower() in r.lower() for name in important_names)]
+    # Fallback: if no overlaps, return all recs
+    if not prioritized_recs:
+        prioritized_recs = recs
+
+    return prioritized_recs
+
+
 # --- Utility to prepare input for model ---
 def prepare_input_df(behavior: Dict[str, Any]) -> pd.DataFrame:
     """
@@ -61,7 +104,7 @@ def predict_and_recommend(payload: BehaviorPayload):
 
     # 3) (Optional) Pull history for later steps (we will use it later)
     history = get_user_behavior_history(user_id, limit=8)
-
+    
     # 4) Prepare model input and predict
     try:
         X_df = prepare_input_df(behavior)
@@ -75,7 +118,7 @@ def predict_and_recommend(payload: BehaviorPayload):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model prediction error: {e}")
 
-    # 5) Get global feature importances (quick top drivers)
+       # 5) Get global feature importances (quick top drivers)
     try:
         importances = {}
         fi = getattr(model, "feature_importances_", None)
@@ -88,17 +131,26 @@ def predict_and_recommend(payload: BehaviorPayload):
         else:
             top_drivers = []
     except Exception:
+        importances = {}
         top_drivers = []
 
-    # 6) Save prediction record (recommendations empty for now)
-    save_prediction(user_id, predicted_score, behavior, importances, recommendations=[], timestamp=timestamp)
+    # ✅ Now outside the try/except — this always runs
+    # 7️⃣ Generate recommendations
+    recommendations = generate_recommendations(behavior, importances)
 
-    # 7) Return response
+    # 🧠 Debug print (check output)
+    print("🧠 Recommendations generated:", recommendations)
+
+    # 8️⃣ Save prediction + recs to Firestore
+    save_prediction(user_id, predicted_score, behavior, importances, recommendations, timestamp=timestamp)
+
+    # 9️⃣ Return response
     return {
         "predicted_score": predicted_score,
         "top_drivers": top_drivers,
-        "recommendations": [],  # placeholder; will be filled in next step
+        "recommendations": recommendations,
         "saved": True
     }
+
 
 # Run with: uvicorn main:app --reload
