@@ -76,6 +76,70 @@ def generate_recommendations(behavior: dict, importances: dict):
 
     return prioritized_recs
 
+def analyze_trends(current_behavior: dict, history: list):
+    """
+    Compare current behavior with the most recent previous record(s) to detect
+    simple trends. `history` is expected to be a list of dicts (most-recent-first).
+    Returns a list of human-readable trend insight strings.
+    """
+    if not history or len(history) == 0:
+        return ["No prior data available to compute trends yet."]
+
+    # history is returned by get_user_behavior_history() in descending order,
+    # where history[0] is the most recent previous record.
+    previous = history[0]
+
+    insights = []
+
+    # Helper to safely get numeric fields (fallback to None if missing)
+    def val(obj, key):
+        try:
+            return float(obj.get(key)) if obj.get(key) is not None else None
+        except Exception:
+            return None
+
+    # Study hours trend
+    cur_sh = val(current_behavior, "StudyHours")
+    prev_sh = val(previous, "StudyHours")
+    if prev_sh is not None and cur_sh is not None:
+        if cur_sh >= prev_sh * 1.10:
+            insights.append(f"Study hours increased by {cur_sh - prev_sh:.1f} hrs compared to the last record — good progress.")
+        elif cur_sh <= prev_sh * 0.90:
+            insights.append(f"Study hours decreased by {prev_sh - cur_sh:.1f} hrs from the last record — try to maintain consistency.")
+
+    # Attendance trend
+    cur_att = val(current_behavior, "Attendance")
+    prev_att = val(previous, "Attendance")
+    if prev_att is not None and cur_att is not None:
+        if cur_att >= prev_att + 5:
+            insights.append("Attendance improved compared to the previous period — keep attending regularly.")
+        elif cur_att <= prev_att - 5:
+            insights.append("Attendance dropped since the previous record; improving attendance often helps performance.")
+
+    # Assignment completion trend
+    cur_ac = val(current_behavior, "AssignmentCompletion")
+    prev_ac = val(previous, "AssignmentCompletion")
+    if prev_ac is not None and cur_ac is not None:
+        if cur_ac >= prev_ac + 5:
+            insights.append("Assignment completion rate increased — good for consistent learning.")
+        elif cur_ac <= prev_ac - 5:
+            insights.append("Assignment completion decreased notably — aim to submit more assignments on time.")
+
+    # Stress level trend (assume higher = worse)
+    cur_st = val(current_behavior, "StressLevel")
+    prev_st = val(previous, "StressLevel")
+    if prev_st is not None and cur_st is not None:
+        if cur_st > prev_st:
+            insights.append("Stress level increased compared to the previous record — consider rest or stress-reduction steps.")
+        elif cur_st < prev_st:
+            insights.append("Stress level decreased — that's positive for focus and learning.")
+
+    # If nothing noteworthy
+    if not insights:
+        insights.append("No significant changes detected — behavior looks stable compared to recent history.")
+
+    return insights
+
 
 # --- Utility to prepare input for model ---
 def prepare_input_df(behavior: Dict[str, Any]) -> pd.DataFrame:
@@ -135,22 +199,54 @@ def predict_and_recommend(payload: BehaviorPayload):
         top_drivers = []
 
     # ✅ Now outside the try/except — this always runs
-    # 7️⃣ Generate recommendations
+        # 7️⃣ Generate recommendations
     recommendations = generate_recommendations(behavior, importances)
 
     # 🧠 Debug print (check output)
     print("🧠 Recommendations generated:", recommendations)
 
-    # 8️⃣ Save prediction + recs to Firestore
-    save_prediction(user_id, predicted_score, behavior, importances, recommendations, timestamp=timestamp)
+    # Analyze trends using history (history list from Firestore)
+    trend_insights = analyze_trends(behavior, history)
+    print("📈 Trend insights:", trend_insights)
 
-    # 9️⃣ Return response
+    # 8️⃣ Save prediction + recs + trend insights to Firestore
+    # 8️⃣ Save prediction + recs + trend insights to Firestore
+    save_prediction(
+        user_id,
+        predicted_score,
+        behavior,
+        importances,
+        recommendations,
+        timestamp=timestamp,
+        trend_insights=trend_insights
+    )
+
+
+
+    # 9️⃣ Return response (include trend_insights)
     return {
         "predicted_score": predicted_score,
         "top_drivers": top_drivers,
         "recommendations": recommendations,
+        "trend_insights": trend_insights,
         "saved": True
     }
+@app.get("/get_latest_prediction/{user_id}")
+def get_latest_prediction_endpoint(user_id: str):
+    """Return the most recent prediction and recommendations for a given user."""
+    from firestore_client import get_latest_prediction
 
+    result = get_latest_prediction(user_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="No prediction found for this user")
+
+    # Format output cleanly for frontend
+    return {
+        "user_id": user_id,
+        "predicted_score": result.get("predicted_score"),
+        "recommendations": result.get("recommendations", []),
+        "trend_insights": result.get("trend_insights", []),
+        "timestamp": result.get("timestamp"),
+    }
 
 # Run with: uvicorn main:app --reload

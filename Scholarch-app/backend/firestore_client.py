@@ -68,23 +68,62 @@ def get_user_behavior_history(user_id: str, limit: int = 8):
 # ─────────────────────────────────────────────
 # 3️⃣ Save prediction and recommendations
 # ─────────────────────────────────────────────
-def save_prediction(user_id: str, predicted_score: float, behavior_data: dict, importances: dict, recommendations: list, timestamp: str = None):
-    """Save model prediction and recommendations to Firestore."""
-    timestamp = timestamp or datetime.utcnow().isoformat()
-    pred_ref = (
-        db.collection("users")
-        .document(user_id)
-        .collection("predictions")
-        .document()
-    )
+def save_prediction(
+    user_id,
+    predicted_score,
+    behavior,
+    importances,
+    recommendations,
+    timestamp=None,
+    trend_insights=None
+):
+    """
+    Save prediction results, recommendations, and optional trend insights to Firestore.
+    Each prediction is stored as a new document in the user's 'predictions' subcollection.
+    """
+    try:
+        doc_ref = db.collection("users").document(user_id).collection("predictions").document()
 
-    pred_ref.set({
-        "predictedScore": predicted_score,
-        "behaviorInput": behavior_data,
-        "featureImportances": importances,
-        "recommendations": recommendations,
-        "createdAt": timestamp
-    })
+        data = {
+            "timestamp": timestamp,
+            "predicted_score": predicted_score,
+            "behavior": behavior,
+            "recommendations": recommendations,
+            "importances": importances,
+            "trend_insights": trend_insights or [],
+        }
 
-    print(f"✅ Prediction saved for user: {user_id}")
-    return True
+        doc_ref.set(data)
+        print(f"✅ Prediction and trends saved for user: {user_id}")
+
+    except Exception as e:
+        print(f"❌ Error saving prediction for user {user_id}: {e}")
+
+def get_latest_prediction(user_id):
+    """
+    Fetch the most recent prediction entry for a given user.
+    Returns a dictionary containing predicted_score, recommendations, and trend insights.
+    """
+    try:
+        preds_ref = (
+            db.collection("users")
+            .document(user_id)
+            .collection("predictions")
+            .order_by("timestamp", direction=firestore.Query.DESCENDING)
+            .limit(1)
+        )
+
+        results = preds_ref.stream()
+        latest_doc = next(results, None)
+
+        if latest_doc:
+            data = latest_doc.to_dict()
+            print(f"✅ Latest prediction retrieved for user: {user_id}")
+            return data
+        else:
+            print(f"⚠️ No predictions found for user: {user_id}")
+            return None
+
+    except Exception as e:
+        print(f"❌ Error retrieving latest prediction for user {user_id}: {e}")
+        return None
