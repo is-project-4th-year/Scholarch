@@ -2,9 +2,17 @@ import React, { useEffect, useState } from "react";
 import { ScrollView, View, StyleSheet, ActivityIndicator } from "react-native";
 import { Card, Text, Button, Title, Paragraph } from "react-native-paper";
 import { useRouter } from "expo-router";
-import { doc, getDoc } from "firebase/firestore";
+import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "../../../lib/FirebaseConfig";
 import { useAuthStore } from "../../../stores/authStore";
+import { 
+  yesNoLabels, 
+  motivationLabels,
+  learningStyleLabels,
+  stressLevelLabels,
+  resourceAccessLabels,
+  labelFor, 
+} from "@/lib/behaviorLabels";
 
 interface BehaviorData {
   studyHours: number;
@@ -13,8 +21,6 @@ interface BehaviorData {
   extracurricular: number;
   motivation: number;
   internet: boolean;
-  gender: string;
-  age: string;
   learningStyle: string;
   onlineCourses: number;
   discussions: number;
@@ -24,106 +30,63 @@ interface BehaviorData {
   lastUpdated?: any;
 }
 
+// 
 export default function SummaryScreen() {
+  const { user } = useAuthStore();
+  const router = useRouter();
   const [data, setData] = useState<BehaviorData | null>(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
-  const { user } = useAuthStore();
 
   useEffect(() => {
-    const fetchBehaviorData = async () => {
+    const fetchLatestBehavior = async () => {
       if (!user) return;
+
       try {
-        const docRef = doc(db, "users", user.uid, "behavior", "data");
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          setData(snap.data() as BehaviorData);
+        const q = query(
+          collection(db, `users/${user.uid}/behavior_logs`),
+          orderBy("timestamp", "desc"),
+          limit(1)
+        );
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+          const latestDoc = snapshot.docs[0];
+          setData(latestDoc.data() as BehaviorData); // ✅ type assertion
+        } else {
+          console.log("⚠️ No behavior data found.");
         }
       } catch (error) {
-        console.error("Error fetching behavior data:", error);
+        console.error("Error fetching latest behavior data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchBehaviorData();
+    fetchLatestBehavior();
   }, [user]);
 
-  if (loading) {
-    return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
-
-  if (!data) {
-    return (
-      <View style={styles.container}>
-        <Title>No Data Found</Title>
-        <Paragraph>Fill in your learning data to personalize predictions.</Paragraph>
-        <Button mode="contained" onPress={() => router.replace("/input/step1")}>
-          Fill Data
-        </Button>
-      </View>
-    );
-  }
+     if (loading) return <Text>Loading...</Text>;
+    if (!data) return <Text>No data available</Text>;
 
   return (
-    <ScrollView style={styles.container}>
-      <Title style={styles.title}>Your Learning Data</Title>
+    <View>
+       <Text>Study Hours: {data.studyHours}</Text>
+      <Text>Attendance: {data.attendance}%</Text>
+      <Text>Assignment Completion: {data.assignmentCompletion}%</Text>
 
-      <Card style={styles.card}>
-        <Card.Content>
-          <Paragraph>📚 Study Hours: {data.studyHours} hrs/week</Paragraph>
-          <Paragraph>🎯 Attendance: {data.attendance}%</Paragraph>
-          <Paragraph>📘 Resources Used: {data.resources}</Paragraph>
-          <Paragraph>🏫 Extracurricular: {data.extracurricular}</Paragraph>
-          <Paragraph>🔥 Motivation Level: {data.motivation}</Paragraph>
-          <Paragraph>💻 Internet Access: {data.internet ? "Yes" : "No"}</Paragraph>
-          <Paragraph>🧠 Learning Style: {data.learningStyle}</Paragraph>
-          <Paragraph>👨‍🎓 Gender: {data.gender}</Paragraph>
-          <Paragraph>🎓 Age: {data.age}</Paragraph>
-          <Paragraph>📊 Assignment Completion: {data.assignmentCompletion}%</Paragraph>
-          <Paragraph>💬 Discussions: {data.discussions}</Paragraph>
-          <Paragraph>🌐 Online Courses: {data.onlineCourses}</Paragraph>
-          <Paragraph>🧩 EdTech Tools: {data.eduTech}</Paragraph>
-          <Paragraph>⚖️ Stress Level: {data.stressLevel}</Paragraph>
-        </Card.Content>
-      </Card>
+      <Text>Motivation: {labelFor(motivationLabels, data.motivation)}</Text>
+      <Text>Learning Style: {labelFor(learningStyleLabels, Number(data.learningStyle))}</Text>
+      <Text>Stress Level: {labelFor(stressLevelLabels, Number(data.stressLevel))}</Text>
+      <Text>Resource Access: {labelFor(resourceAccessLabels, data.resources)}</Text>
 
-      <Button
-        mode="contained"
-        style={styles.editButton}
-        onPress={() => router.replace("/input/step1")}
-      >
-        Edit My Data
-      </Button>
-    </ScrollView>
+      <Text>Internet Access: {labelFor(yesNoLabels, Number(data.internet))}</Text>
+      <Text>Participates in Discussions: {labelFor(yesNoLabels, data.discussions)}</Text>
+      <Text>Online Courses: {labelFor(yesNoLabels, data.onlineCourses)}</Text>
+      <Text>Extracurricular Activities: {labelFor(yesNoLabels, data.extracurricular)}</Text>
+      <Text>Uses EduTech Tools: {labelFor(yesNoLabels, data.eduTech)}</Text>
+
+      
+    </View>
   );
-}
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  card: {
-    marginVertical: 16,
-    padding: 12,
-    backgroundColor: "#fff",
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-  },
-  editButton: {
-    marginTop: 20,
-    backgroundColor: "#007AFF",
-  },
-});
+}
