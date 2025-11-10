@@ -1,18 +1,23 @@
 // import React, { useState } from "react";
-// import { View, StyleSheet, ScrollView, Alert } from "react-native";
-// import { TextInput, Text, Button, ActivityIndicator } from "react-native-paper";
-// import { useAuthStore } from "../../../stores/authStore";
-// import { collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from "firebase/firestore";
+// import { ScrollView, StyleSheet, Alert } from "react-native";
+// import { Text, Button, ActivityIndicator } from "react-native-paper";
+// import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 // import { db, auth } from "../../../lib/FirebaseConfig";
 // import { useBehaviorFormStore } from "@/stores/behaviorFormStore";
 // import { router } from "expo-router";
-// import {yesNoLabels, motivationLabels, learningStyleLabels, stressLevelLabels} from "@/lib/behaviorLabels";
+// import {
+//   yesNoLabels,
+//   motivationLabels,
+//   learningStyleLabels,
+//   stressLevelLabels,
+// } from "@/lib/behaviorLabels";
+// import {predictAndRecommend} from "@/services/api";
 
-// export default function Step3({ navigation }: any) {
+// export default function Step3() {
+//   const [loading, setLoading] = useState(false);
+//   const formData = useBehaviorFormStore.getState().getCleanData();
 
-// const formData = useBehaviorFormStore.getState().getCleanData();  const [loading, setLoading] = useState(false);
-
-//   const saveToFirestore = async (formData: any) => {
+//   const saveToFirestore = async () => {
 //   const user = auth.currentUser;
 //   if (!user) {
 //     Alert.alert("Not Logged In", "Please log in before saving your data.");
@@ -20,35 +25,42 @@
 //   }
 
 //   try {
-//     // ✅ Only include known numeric/boolean/string fields used in ML
+//     setLoading(true);
+
+//     // ✅ Get clean data snapshot from Zustand store
+//     const formData = useBehaviorFormStore.getState().getCleanData?.() 
+//       ?? useBehaviorFormStore.getState();
+
+//     // ✅ Define which keys are allowed (model features)
 //     const allowedKeys = [
 //       "studyHours",
 //       "attendance",
-//       "resources",
-//       "extracurricular",
-//       "motivation",
-//       "internet",
-//       "gender",
-//       "age",
-//       "learningStyle",
-//       "onlineCourses",
-//       "discussions",
 //       "assignmentCompletion",
-//       "eduTech",
+//       "motivation",
+//       "learningStyle",
 //       "stressLevel",
+//       "resources",
+//       "internet",
+//       "discussions",
+//       "onlineCourses",
+//       "extracurricular",
+//       "eduTech",
 //     ];
-//     console.log("🧾 Form data before cleaning:", JSON.stringify(formData, null, 2));
 
-    
-
-
+//     // ✅ Clean the data safely
 //     const cleanForm: Record<string, any> = {};
 //     allowedKeys.forEach((key) => {
-//       if (key in formData) cleanForm[key] = formData[key];
+//       if (key in formData) {
+//         cleanForm[key] = formData[key as keyof typeof formData]; // 👈 type-safe fix
+//       }
 //     });
-//     console.log("🧾 Clean form data:", formData);
-//     await saveToFirestore(formData);
 
+//     // ✅ Log clean data for debug
+//     console.log("🧾 Clean form data ready to save:", cleanForm);
+
+
+
+//     // ✅ Save new document into Firestore collection
 //     const logRef = collection(db, `users/${user.uid}/behavior_logs`);
 //     const newDoc = await addDoc(logRef, {
 //       ...cleanForm,
@@ -56,12 +68,14 @@
 //     });
 
 //     console.log("✅ Behavior data saved with ID:", newDoc.id);
+
 //     Alert.alert("Success", "Your behavior data has been saved!");
 //     router.navigate("/input/summary");
-
 //   } catch (error: any) {
 //     console.error("❌ Error saving behavior data:", error);
 //     Alert.alert("Error", "Could not save your data. Try again later.");
+//   } finally {
+//     setLoading(false);
 //   }
 // };
 
@@ -78,7 +92,6 @@
 
 //       <Text style={styles.subtitle}>Confirm your inputs before saving:</Text>
 
-//       {/* ✅ Human-friendly summary */}
 //       {renderRow("Study Hours / Week", formData.studyHours)}
 //       {renderRow("Attendance (%)", formData.attendance)}
 //       {renderRow("Assignment Completion (%)", formData.assignmentCompletion)}
@@ -88,10 +101,7 @@
 //       {renderRow("Resources Access", yesNoLabels[formData.resources])}
 //       {renderRow("Participates in Discussions", yesNoLabels[formData.discussions])}
 //       {renderRow("Takes Online Courses", yesNoLabels[formData.onlineCourses])}
-//       {renderRow(
-//         "Extracurricular Activities",
-//         yesNoLabels[formData.extracurricular]
-//       )}
+//       {renderRow("Extracurricular Activities", yesNoLabels[formData.extracurricular])}
 //       {renderRow("Uses EduTech Tools", yesNoLabels[formData.eduTech])}
 //       {renderRow("Stress Level", stressLevelLabels[formData.stressLevel])}
 
@@ -103,8 +113,6 @@
 //       >
 //         Previous
 //       </Button>
-
-      
 
 //       <Button
 //         mode="contained"
@@ -126,88 +134,83 @@
 //   button: { marginTop: 20 },
 // });
 
+
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Alert } from "react-native";
 import { Text, Button, ActivityIndicator } from "react-native-paper";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db, auth } from "../../../lib/FirebaseConfig";
 import { useBehaviorFormStore } from "@/stores/behaviorFormStore";
+import { useAuthStore } from "@/stores/authStore";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db, auth } from "@/lib/FirebaseConfig";
 import { router } from "expo-router";
-import {
-  yesNoLabels,
-  motivationLabels,
-  learningStyleLabels,
-  stressLevelLabels,
-} from "@/lib/behaviorLabels";
+import { predictAndRecommend } from "../../services/api"
 
 export default function Step3() {
-  const [loading, setLoading] = useState(false);
   const formData = useBehaviorFormStore.getState().getCleanData();
+  const [loading, setLoading] = useState(false);
+  const { user } = useAuthStore();
 
   const saveToFirestore = async () => {
-  const user = auth.currentUser;
-  if (!user) {
-    Alert.alert("Not Logged In", "Please log in before saving your data.");
-    return;
-  }
+    if (!user) {
+      Alert.alert("Not Logged In", "Please log in before saving your data.");
+      return;
+    }
 
-  try {
     setLoading(true);
+    try {
+      // ✅ Step 1: Define fields that match your ML model
+      const allowedKeys = [
+        "studyHours",
+        "attendance",
+        "assignmentCompletion",
+        "motivation",
+        "learningStyle",
+        "stressLevel",
+        "resources",
+        "internet",
+        "discussions",
+        "onlineCourses",
+        "extracurricular",
+        "eduTech",
+      ];
 
-    // ✅ Get clean data snapshot from Zustand store
-    const formData = useBehaviorFormStore.getState().getCleanData?.() 
-      ?? useBehaviorFormStore.getState();
+      const cleanForm: Record<string, any> = {};
+      allowedKeys.forEach((key) => {
+        if (key in formData) cleanForm[key] = formData[key as keyof typeof formData];
+      });
 
-    // ✅ Define which keys are allowed (model features)
-    const allowedKeys = [
-      "studyHours",
-      "attendance",
-      "assignmentCompletion",
-      "motivation",
-      "learningStyle",
-      "stressLevel",
-      "resources",
-      "internet",
-      "discussions",
-      "onlineCourses",
-      "extracurricular",
-      "eduTech",
-    ];
+      // ✅ Step 2: Save behavior to Firestore
+      const logRef = collection(db, `users/${user.uid}/behavior_logs`);
+      const newDoc = await addDoc(logRef, {
+        ...cleanForm,
+        timestamp: serverTimestamp(),
+      });
 
-    // ✅ Clean the data safely
-    const cleanForm: Record<string, any> = {};
-    allowedKeys.forEach((key) => {
-      if (key in formData) {
-        cleanForm[key] = formData[key as keyof typeof formData]; // 👈 type-safe fix
+      console.log("✅ Behavior data saved with ID:", newDoc.id);
+
+      // ✅ Step 3: Trigger backend for prediction & recommendations
+      const response = await predictAndRecommend(user.uid, cleanForm);
+
+      if (response) {
+        console.log("🎯 Prediction response:", response);
+        Alert.alert(
+          "Success",
+          `Prediction saved!\nPredicted Score: ${response.predicted_score.toFixed(2)}`
+        );
+      } else {
+        Alert.alert("Warning", "Behavior saved, but backend response missing.");
       }
-    });
 
-    // ✅ Log clean data for debug
-    console.log("🧾 Clean form data ready to save:", cleanForm);
+      // ✅ Step 4: Navigate to summary page
+      router.navigate("/input/summary");
 
-    // ✅ Save new document into Firestore collection
-    const logRef = collection(db, `users/${user.uid}/behavior_logs`);
-    const newDoc = await addDoc(logRef, {
-      ...cleanForm,
-      timestamp: serverTimestamp(),
-    });
-
-    console.log("✅ Behavior data saved with ID:", newDoc.id);
-
-    Alert.alert("Success", "Your behavior data has been saved!");
-    router.navigate("/input/summary");
-  } catch (error: any) {
-    console.error("❌ Error saving behavior data:", error);
-    Alert.alert("Error", "Could not save your data. Try again later.");
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-  const renderRow = (label: string, value: string | number) => (
-    <Text style={styles.row}>{`${label}: ${value}`}</Text>
-  );
+    } catch (error: any) {
+      console.error("❌ Error saving behavior data:", error);
+      Alert.alert("Error", "Could not save your data. Try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -215,37 +218,13 @@ export default function Step3() {
         Step 3 – Review & Save
       </Text>
 
-      <Text style={styles.subtitle}>Confirm your inputs before saving:</Text>
-
-      {renderRow("Study Hours / Week", formData.studyHours)}
-      {renderRow("Attendance (%)", formData.attendance)}
-      {renderRow("Assignment Completion (%)", formData.assignmentCompletion)}
-      {renderRow("Motivation Level", motivationLabels[formData.motivation])}
-      {renderRow("Learning Style", learningStyleLabels[formData.learningStyle])}
-      {renderRow("Internet Access", yesNoLabels[formData.internet])}
-      {renderRow("Resources Access", yesNoLabels[formData.resources])}
-      {renderRow("Participates in Discussions", yesNoLabels[formData.discussions])}
-      {renderRow("Takes Online Courses", yesNoLabels[formData.onlineCourses])}
-      {renderRow("Extracurricular Activities", yesNoLabels[formData.extracurricular])}
-      {renderRow("Uses EduTech Tools", yesNoLabels[formData.eduTech])}
-      {renderRow("Stress Level", stressLevelLabels[formData.stressLevel])}
-
-      <Button
-        mode="outlined"
-        onPress={() => router.replace("/input/step2")}
-        style={styles.button}
-        disabled={loading}
-      >
-        Previous
-      </Button>
-
       <Button
         mode="contained"
         onPress={saveToFirestore}
         style={styles.button}
         disabled={loading}
       >
-        {loading ? <ActivityIndicator animating color="#fff" /> : "Save & Finish"}
+        {loading ? <ActivityIndicator animating color="#fff" /> : "Save & Generate"}
       </Button>
     </ScrollView>
   );
@@ -253,8 +232,6 @@ export default function Step3() {
 
 const styles = StyleSheet.create({
   container: { padding: 20 },
-  title: { marginBottom: 10 },
-  subtitle: { marginBottom: 20 },
-  row: { marginVertical: 4, fontSize: 16 },
+  title: { marginBottom: 20 },
   button: { marginTop: 20 },
 });

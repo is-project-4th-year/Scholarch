@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, Button, Alert, StyleSheet } from "react-native";
-import { postBehaviorData, getLatestPrediction } from "../services/api";
+import { predictAndRecommend, getLatestPrediction } from "../services/api";
 import { auth } from "@/lib/FirebaseConfig";
 interface BehaviorData {
   StudyHours: number;
@@ -41,7 +41,7 @@ const TestApi: React.FC = () => {
 
   const handlePost = async () => {
     try {
-      const result = await postBehaviorData(testUserId, dummyBehavior);
+      const result = await predictAndRecommend(testUserId, dummyBehavior);
       console.log("✅ POST Success:", result);
       Alert.alert(
         "POST Success",

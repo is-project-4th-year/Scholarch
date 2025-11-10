@@ -26,7 +26,7 @@ export default apiClient;
 
 
 // 1️⃣ Send behavior data for prediction
-export const postBehaviorData = async (userId: string, behaviorData: Record<string, any>) => {
+export const predictAndRecommend = async (userId: string, behaviorData: Record<string, any>) => {
   const response = await apiClient.post("/predict_and_recommend", {
     user_id: userId,
     behavior: behaviorData,
