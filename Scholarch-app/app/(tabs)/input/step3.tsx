@@ -194,9 +194,16 @@ export default function Step3() {
       if (response) {
         console.log("🎯 Prediction response:", response);
         Alert.alert(
-          "Success",
-          `Prediction saved!\nPredicted Score: ${response.predicted_score.toFixed(2)}`
-        );
+  "Success 🎉",
+  "Your behavior data was saved and your performance prediction has been generated. You can now view your results on the Dashboard.",
+  [
+    {
+      text: "Go to Dashboard",
+      onPress: () => router.replace("/(tabs)"),
+    },
+  ]
+);
+
       } else {
         Alert.alert("Warning", "Behavior saved, but backend response missing.");
       }
