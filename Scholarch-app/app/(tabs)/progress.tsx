@@ -1,165 +1,156 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator,View, Text, StyleSheet, ScrollView, Dimensions } from "react-native";
+import { View, ScrollView, StyleSheet, Dimensions } from "react-native";
+import { Text, ActivityIndicator } from "react-native-paper";
+import { auth, db } from "@/lib/FirebaseConfig";
+import { collection, getDocs, orderBy, query } from "firebase/firestore";
 import { LineChart } from "react-native-chart-kit";
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/FirebaseConfig";
-import { formatDate } from "@/lib/dateUtils";
-import { useAuthStore } from "@/stores/authStore";
 
-const screenWidth = Dimensions.get("window").width;
+interface Prediction {
+  predicted_score: number;
+  recommendations: string[];
+  timestamp: Date | null;
+}
+
+interface BehaviorLog {
+  studyHours: number;
+  attendance: number;
+  stressLevel: number;
+  assignmentCompletion: number;
+  timestamp: Date | null;
+}
 
 export default function ProgressScreen() {
-  const { user } = useAuthStore();
-  const [progressData, setProgressData] = useState<any>(null);
+  const user = auth.currentUser;
   const [loading, setLoading] = useState(true);
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [behaviorLogs, setBehaviorLogs] = useState<BehaviorLog[]>([]);
 
+  // ----------------- Fetch Firestore Data -----------------
   useEffect(() => {
-    const fetchProgress = async () => {
-      if (!user?.uid) return;
-      try {
-        const docRef = doc(db, "users", user.uid, "progress", "data"); // "data" is the doc ID you used earlier
-        const snap = await getDoc(docRef);
+    const fetchProgressData = async () => {
+      if (!user) return;
 
-        if (snap.exists()) {
-            console.log("🔥 Firestore progress data:", snap.data());
-            setProgressData(snap.data());
-        } else {
-          console.log("No progress data found.");
-        }
+      try {
+        const predQuery = query(
+          collection(db, `users/${user.uid}/predictions`),
+          orderBy("timestamp", "asc")
+        );
+        const predSnap = await getDocs(predQuery);
+        const preds = predSnap.docs.map((doc) => ({
+          predicted_score: doc.data().predicted_score || 0,
+          recommendations: doc.data().recommendations || [],
+          timestamp: doc.data().timestamp?.toDate() || null,
+        }));
+        setPredictions(preds);
+
+        const logsQuery = query(
+          collection(db, `users/${user.uid}/behavior_logs`),
+          orderBy("timestamp", "asc")
+        );
+        const logsSnap = await getDocs(logsQuery);
+        const logs = logsSnap.docs.map((doc) => ({
+          studyHours: doc.data().studyHours || 0,
+          attendance: doc.data().attendance || 0,
+          stressLevel: doc.data().stressLevel || 0,
+          assignmentCompletion: doc.data().assignmentCompletion || 0,
+          timestamp: doc.data().timestamp?.toDate() || null,
+        }));
+        setBehaviorLogs(logs);
       } catch (error) {
-        console.error("Error fetching progress:", error);
+        console.error("❌ Error fetching progress data:", error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProgress();
+    fetchProgressData();
   }, [user]);
 
+  // ----------------- Handle Loading -----------------
   if (loading) {
     return (
-      <View style={styles.loader}>
-        <ActivityIndicator size="large" color="#007AFF" />
+      <View style={styles.loaderContainer}>
+        <ActivityIndicator animating size="large" />
+        <Text>Loading your progress...</Text>
       </View>
     );
   }
 
-  if (!progressData) {
-    return (
-      <View style={styles.loader}>
-        <Text>No progress data available yet.</Text>
-      </View>
-    );
-  }
+  // ----------------- Prepare Data for Chart -----------------
+  const labels = predictions.map((p) =>
+    p.timestamp
+      ? p.timestamp.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : "N/A"
+  );
+  const data = predictions.map((p) => p.predicted_score);
 
-  // Transform Firestore history into chart format
-  const chartData = {
-    labels: progressData.history.map((item: any) => formatDate(item.date)),
-    datasets: [
-      {
-        data: progressData.history.map((item: any) => item.predictedScore),
-        color: () => `rgba(0, 122, 255, 1)`,
-        strokeWidth: 2,
-      },
-    ],
+  // ----------------- Compute Averages -----------------
+  const avg = (key: keyof BehaviorLog) =>
+    behaviorLogs.length
+      ? behaviorLogs.reduce((sum, l) => sum + (l[key] as number), 0) / behaviorLogs.length
+      : 0;
+
+  const avgStudyHours = avg("studyHours");
+  const avgStress = avg("stressLevel");
+  const avgAttendance = avg("attendance");
+
+  // ----------------- Chart Config -----------------
+  const chartConfig = {
+    backgroundGradientFrom: "#f7f7f7",
+    backgroundGradientTo: "#f7f7f7",
+    decimalPlaces: 1,
+    color: (opacity = 1) => `rgba(67, 97, 238, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+    propsForDots: { r: "4" },
   };
 
+  // ----------------- UI -----------------
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Progress Overview</Text>
-      <Text style={styles.subtitle}>Track your performance over time</Text>
+      <Text style={styles.title}>📈 Academic Progress</Text>
 
-      {/* Line Chart */}
-      <View style={styles.chartContainer}>
+      {data.length > 0 ? (
         <LineChart
-          data={chartData}
-          width={screenWidth - 32}
+          data={{
+            labels,
+            datasets: [{ data }],
+          }}
+          width={Dimensions.get("window").width - 40}
           height={220}
           yAxisSuffix="%"
-          chartConfig={{
-            backgroundGradientFrom: "#ffffff",
-            backgroundGradientTo: "#ffffff",
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(0, 122, 255, ${opacity})`,
-            labelColor: () => "#333",
-            propsForDots: { r: "5", strokeWidth: "2", stroke: "#007AFF" },
-          }}
+          chartConfig={chartConfig}
           bezier
           style={styles.chart}
         />
-      </View>
+      ) : (
+        <Text>No prediction data available.</Text>
+      )}
 
-      {/* Stats */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{progressData.avgStudyHours}</Text>
-          <Text style={styles.statLabel}>Avg Study Hours</Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{progressData.avgStressLevel}</Text>
-          <Text style={styles.statLabel}>Avg Stress Level</Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <Text style={styles.statValue}>{progressData.scoreTrend}</Text>
-          <Text style={styles.statLabel}>Trend</Text>
-        </View>
-      </View>
-
-      {/* Insight Card */}
-      <View style={styles.insightCard}>
-        <Text style={styles.insightTitle}>📈 Progress Update</Text>
-        <Text style={styles.insightText}>
-          {progressData.scoreTrend === "Improving"
-            ? "Your predicted score is improving — great job!"
-            : "Keep pushing, you can do better next week!"}
+      <View style={styles.summaryContainer}>
+        <Text style={styles.subtitle}>Summary Averages</Text>
+        <Text>Average Study Hours: {avgStudyHours.toFixed(1)}</Text>
+        <Text>
+          Average Stress Level:{" "}
+          {avgStress.toFixed(1)}{" "}
+          ({avgStress < 1 ? "Low" : avgStress < 2 ? "Medium" : "High"})
         </Text>
+        <Text>Average Attendance: {avgAttendance.toFixed(1)}%</Text>
+      </View>
+
+      <View style={styles.footer}>
+        <Text style={{ color: "#555" }}>Updated automatically from your submissions.</Text>
       </View>
     </ScrollView>
   );
 }
 
+// ----------------- Styles -----------------
 const styles = StyleSheet.create({
-  loader: { flex: 1, justifyContent: "center", alignItems: "center" },
-  container: { flex: 1, padding: 16, backgroundColor: "#f9f9f9" },
-  title: { fontSize: 22, fontWeight: "bold", color: "#222" },
-  subtitle: { color: "#555", marginBottom: 20 },
-  chartContainer: { alignItems: "center", marginBottom: 24 },
-  chart: { borderRadius: 16 },
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 14,
-    marginHorizontal: 4,
-    borderRadius: 12,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  statValue: { fontSize: 20, fontWeight: "bold", color: "#007AFF" },
-  statLabel: { color: "#555", fontSize: 12, marginTop: 4 },
-  insightCard: {
-    backgroundColor: "#fff",
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  insightTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 6,
-    color: "#007AFF",
-  },
-  insightText: { fontSize: 14, color: "#444" },
+  container: { padding: 20 },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 10 },
+  chart: { borderRadius: 16, marginVertical: 10 },
+  summaryContainer: { marginTop: 20 },
+  subtitle: { fontWeight: "600", fontSize: 18, marginBottom: 8 },
+  footer: { marginTop: 30, alignItems: "center" },
+  loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
 });
