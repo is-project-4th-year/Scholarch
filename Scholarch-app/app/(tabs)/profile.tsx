@@ -114,6 +114,9 @@ export default function profile() {
       Alert.alert("Error", "Failed to log out.");
     }
   };
+  const handleAPITest = () => {
+    router.push("/test/TestAPI");
+  }
 
   // ⏳ Loading state
   if (loading) {
@@ -171,6 +174,9 @@ export default function profile() {
       <Button title={saving ? "Saving..." : "Save Changes"} onPress={handleSave} disabled={saving} />
       <View style={{ height: 20 }} />
       <Button title="Logout" color="red" onPress={handleLogout} />
+            <View style={{ height: 20 }} />
+
+      <Button title="API test" color="red" onPress={handleAPITest} />
     </ScrollView>
   );
 }

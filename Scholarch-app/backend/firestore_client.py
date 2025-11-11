@@ -85,7 +85,7 @@ def save_prediction(
         doc_ref = db.collection("users").document(user_id).collection("predictions").document()
 
         data = {
-            "timestamp": timestamp,
+            "timestamp": timestamp or firestore.SERVER_TIMESTAMP,
             "predicted_score": predicted_score,
             "behavior": behavior,
             "recommendations": recommendations,

@@ -1,15 +1,27 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import { View, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import { Button, Text, Card } from "react-native-paper";
 import { collection, query, orderBy, limit, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { formatDate } from "@/lib/dateUtils";
 import { db } from "@/lib/FirebaseConfig";
 import { useAuthStore } from "@/stores/authStore"; 
 import { useBehaviorFormStore } from "@/stores/behaviorFormStore";
+import { getLatestPrediction } from "../services/api";
+import { router } from "expo-router";
+
+interface PredictionData {
+  user_id: string;
+  predicted_score: number;
+  recommendations: string[];
+  trend_insights?: string[];
+  timestamp?: string;
+}
 export default function HomeScreen() {
   const [prediction, setPrediction] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const user = useAuthStore((state) => state.user);
+  const [error, setError] = useState<string | null>(null);
 
   // 🔹 Mock fallback data for dashboard
   const mockPrediction = {
@@ -19,166 +31,160 @@ export default function HomeScreen() {
     datePredicted: "2025-10-17",
   };
 
+    // ✅ Fetch the latest prediction from backend
   useEffect(() => {
-    if (!user) return;
+    const fetchPrediction = async () => {
+      if (!user) return;
 
-    // --- Fetch Profile ---
-    const fetchProfile = async () => {
       try {
-        const profileRef = doc(db, "users", user.uid, "profile", "info");
-        const snap = await getDoc(profileRef);
-        if (snap.exists()) {
-          setProfile(snap.data());
-        } else {
-          console.log("No profile found for user.");
-          setProfile({ name: "Student", program: "your program" });
-        }
-      } catch (err) {
-        console.error("Error fetching profile:", err);
-        setProfile({ name: "Student", program: "your program" });
+        setLoading(true);
+        const result = await getLatestPrediction(user.uid);
+        console.log("✅ Latest prediction:", result);
+        setPrediction(result);
+        setError(null);
+      } catch (err: any) {
+        console.error("❌ Error fetching prediction:", err);
+        setError("No prediction found or server unreachable.");
+      } finally {
+        setLoading(false);
       }
-      console.log(useBehaviorFormStore.getState());
-
     };
 
-    fetchProfile();
-
-    // --- Fetch Latest Prediction ---
-    const ref = collection(db, "users", user.uid, "prediction");
-    const q = query(ref, orderBy("datePredicted", "desc"), limit(1));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        if (!snapshot.empty) {
-          setPrediction(snapshot.docs[0].data());
-          
-        } else {
-          console.log("No predictions found, using mock data.");
-          setPrediction(mockPrediction);
-        }
-        setLoading(false);
-      },
-      (error) => {
-        console.error("Error fetching predictions:", error);
-        setPrediction(mockPrediction);
-        setLoading(false);
-      }
-    );
-
-    return unsubscribe;
+    fetchPrediction();
   }, [user]);
 
+  // 🔄 Refresh manually
+  const handleRefresh = () => {
+    setPrediction(null);
+    setLoading(true);
+    setError(null);
+    if (user) {
+      getLatestPrediction(user.uid)
+        .then(setPrediction)
+        .catch(() => setError("Unable to refresh predictions."))
+        .finally(() => setLoading(false));
+    }
+  };
+
+   // 🧩 UI States
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text>Loading dashboard...</Text>
+        <ActivityIndicator size="large" />
+        <Text>Loading your latest prediction...</Text>
+      </View>
+    );
+  }
+
+   if (error || !prediction) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.errorText}>{error || "No data available."}</Text>
+        <Button mode="contained" onPress={handleRefresh}>
+          Retry
+        </Button>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* 🔹 Personalized Greeting */}
-      <View style={styles.greetingContainer}>
-        <Text style={styles.greetingText}>
-          Hi {profile?.name || "Student"} 👋
-        </Text>
-        <Text style={styles.subText}>
-          You are pursuing {profile?.program || "your program"}.
-        </Text>
-      </View>
+    <ScrollView contentContainerStyle={styles.container}>
+      <Text variant="headlineMedium" style={styles.header}>
+        🎓 Your Academic Dashboard
+      </Text>
 
-      
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text variant="titleMedium">Predicted Exam Score</Text>
+          <Text style={styles.score}>{prediction.predicted_score.toFixed(2)}%</Text>
+          <Text style={styles.timestamp}>
+            Last Updated: {prediction.timestamp || "N/A"}
+          </Text>
+        </Card.Content>
+      </Card>
 
-      {/* 🔹 Predicted Score Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Predicted Exam Score</Text>
-        <Text style={styles.scoreText}>{prediction.predictedExamScore.toFixed(1)}%</Text>
-        <Text style={styles.dateText}>
-          as of {formatDate(prediction.datePredicted)}
-        </Text>
-      </View>
+      <Card style={styles.card}>
+        <Card.Content>
+          <Text variant="titleMedium">📋 Recommendations</Text>
+          {prediction.recommendations && prediction.recommendations.length > 0 ? (
+            prediction.recommendations.map((rec: string, idx: number) => (
+              <Text key={idx} style={styles.recommendation}>• {rec}</Text>
+            ))
+          ) : (
+            <Text>No recommendations found.</Text>
+          )}
+        </Card.Content>
+      </Card>
 
-      {/* 🔹 Recommendation Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Recommendation</Text>
-        <Text style={styles.bodyText}>{prediction.recommendation}</Text>
-      </View>
+      {prediction.trend_insights && prediction.trend_insights.length > 0 && (
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="titleMedium">📈 Trend Insights</Text>
+            {prediction.trend_insights.map((insight: string, idx: number) => (
+              <Text key={idx} style={styles.trend}>• {insight}</Text>
+            ))}
 
-      {/* 🔹 Key Drivers Card */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Top Performance Drivers</Text>
-        {prediction.keyDrivers.map((driver: string, idx: number) => (
-          <Text key={idx} style={styles.driverItem}>• {driver}</Text>
-        ))}
-      </View>
+          </Card.Content>
+        </Card>
+      )}
+
+      <Button mode="contained" style={styles.refreshButton} onPress={handleRefresh}>
+        Refresh Data
+      </Button>
+
+      <Button
+        mode="outlined"
+        onPress={() => router.push("/input/step1")}
+        style={styles.refreshButton}
+      >
+        Update Behavior Data
+      </Button>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#fff",
     padding: 16,
-  },
-  greetingContainer: {
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  greetingText: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#007AFF",
-  },
-  subText: {
-    fontSize: 16,
-    color: "#555",
-    marginTop: 4,
-  },
-  heading: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginBottom: 16,
-  },
-  card: {
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 8,
-  },
-  bodyText: {
-    fontSize: 16,
-    color: "#444",
-  },
-  scoreText: {
-    fontSize: 48,
-    fontWeight: "700",
-    color: "#007AFF",
-  },
-  dateText: {
-    fontSize: 14,
-    color: "#666",
-  },
-  driverItem: {
-    fontSize: 16,
-    color: "#444",
-    marginBottom: 4,
   },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  header: {
+    textAlign: "center",
+    marginBottom: 20,
+    fontWeight: "600",
+  },
+  card: {
+    marginBottom: 16,
+  },
+  score: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#4CAF50",
+    marginTop: 8,
+  },
+  timestamp: {
+    fontSize: 12,
+    color: "#777",
+    marginTop: 6,
+  },
+  recommendation: {
+    fontSize: 14,
+    marginTop: 6,
+  },
+  trend: {
+    fontSize: 14,
+    marginTop: 6,
+    fontStyle: "italic",
+  },
+  errorText: {
+    color: "red",
+    marginBottom: 8,
+  },
+  refreshButton: {
+    marginTop: 10,
   },
 });
