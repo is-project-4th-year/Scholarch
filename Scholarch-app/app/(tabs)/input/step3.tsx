@@ -174,12 +174,17 @@ export default function Step3() {
         "eduTech",
       ];
 
+      console.log("🧾 Raw Zustand form data:", formData, "This is the step3 file");
+
       const cleanForm: Record<string, any> = {};
       allowedKeys.forEach((key) => {
         if (key in formData) cleanForm[key] = formData[key as keyof typeof formData];
       });
 
+      console.log("📄 Data about to be saved in Firestore:", cleanForm, "This is the step3 file");
+
       // ✅ Step 2: Save behavior to Firestore
+      
       const logRef = collection(db, `users/${user.uid}/behavior_logs`);
       const newDoc = await addDoc(logRef, {
         ...cleanForm,
@@ -189,7 +194,10 @@ export default function Step3() {
       console.log("✅ Behavior data saved with ID:", newDoc.id);
 
       // ✅ Step 3: Trigger backend for prediction & recommendations
+      console.log("🚀 Sending to backend /predict_and_recommend:", cleanForm);
+      console.log("📋 Final form being sent to backend:", JSON.stringify(cleanForm, null, 2));
       const response = await predictAndRecommend(user.uid, cleanForm);
+      console.log("🤖 Backend response received:", response);
 
       if (response) {
         console.log("🎯 Prediction response:", response);
@@ -224,6 +232,8 @@ export default function Step3() {
       <Text variant="titleLarge" style={styles.title}>
         Step 3 – Review & Save
       </Text>
+
+      
 
       <Button
         mode="contained"
