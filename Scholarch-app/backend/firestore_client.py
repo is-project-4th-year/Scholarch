@@ -75,29 +75,29 @@ def save_prediction(
     importances,
     recommendations,
     timestamp=None,
-    trend_insights=None
+    trend_insights=None,
+    shap_explanation=None,  # ✅ new optional field
 ):
-    """
-    Save prediction results, recommendations, and optional trend insights to Firestore.
-    Each prediction is stored as a new document in the user's 'predictions' subcollection.
-    """
     try:
-        doc_ref = db.collection("users").document(user_id).collection("predictions").document()
-
-        data = {
-            "timestamp": timestamp or firestore.SERVER_TIMESTAMP,
+        preds_ref = collection(db, f"users/{user_id}/predictions")
+        doc_data = {
             "predicted_score": predicted_score,
             "behavior": behavior,
-            "recommendations": recommendations,
             "importances": importances,
+            "recommendations": recommendations,
+            "timestamp": timestamp or firestore.SERVER_TIMESTAMP,
             "trend_insights": trend_insights or [],
         }
 
-        doc_ref.set(data)
-        print(f"✅ Prediction and trends saved for user: {user_id}")
+        # ✅ Add SHAP explanation only if available
+        if shap_explanation is not None:
+            doc_data["shap_explanation"] = shap_explanation
 
+        preds_ref.add(doc_data)
+        print(f"✅ Prediction saved for user: {user_id}")
     except Exception as e:
-        print(f"❌ Error saving prediction for user {user_id}: {e}")
+        print(f"❌ Error saving prediction for {user_id}: {e}")
+
 
 def get_latest_prediction(user_id):
     """

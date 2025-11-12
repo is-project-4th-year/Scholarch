@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional
 import joblib
 import pandas as pd
 import numpy as np
+import shap
 
 # Firestore helpers (your module)
 from firestore_client import save_behavior_to_firestore, get_user_behavior_history, save_prediction
@@ -25,8 +26,16 @@ pipeline = joblib.load(PIPELINE_PATH)
 model = pipeline.get("model")
 preprocessor = pipeline.get("preprocessor")
 FEATURES = pipeline.get("features", None)
+
 if FEATURES is None:
     raise RuntimeError("Serialized pipeline must include 'features' list.")
+
+# ✅ Initialize SHAP explainer once
+try:
+    explainer = shap.TreeExplainer(model)
+except Exception as e:
+    print(f"⚠️ Could not initialize SHAP explainer: {e}")
+    explainer = None
 
 # --- Request schema ---
 class BehaviorPayload(BaseModel):
@@ -75,6 +84,47 @@ def generate_recommendations(behavior: dict, importances: dict):
         prioritized_recs = recs
 
     return prioritized_recs
+
+def compute_trend_insights(history):
+    """
+    Analyze recent user behavior to detect performance-related trends.
+    Expects `history` to be a list of dictionaries (behavior logs).
+    """
+    if not history or len(history) < 2:
+        return ["Not enough data to compute trends yet."]
+
+    # Sort by timestamp ascending
+    sorted_history = sorted(
+        history, key=lambda x: x.get("timestamp", 0)
+    )
+
+    trends = []
+    recent = sorted_history[-1]
+    previous = sorted_history[-2]
+
+    # Compare a few key metrics
+    try:
+        if recent.get("studyHours", 0) > previous.get("studyHours", 0):
+            trends.append("Study hours have increased compared to the last record.")
+        elif recent.get("studyHours", 0) < previous.get("studyHours", 0):
+            trends.append("Study hours have decreased recently.")
+
+        if recent.get("stressLevel", 0) > previous.get("stressLevel", 0):
+            trends.append("Stress levels have increased. Consider relaxation routines.")
+        elif recent.get("stressLevel", 0) < previous.get("stressLevel", 0):
+            trends.append("Stress levels have decreased. Great progress!")
+
+        if recent.get("attendance", 0) > previous.get("attendance", 0):
+            trends.append("Attendance has improved.")
+        elif recent.get("attendance", 0) < previous.get("attendance", 0):
+            trends.append("Attendance has dropped slightly.")
+    except Exception as e:
+        print(f"⚠️ Trend computation error: {e}")
+
+    if not trends:
+        trends.append("Behavior metrics are stable since the last record.")
+    return trends
+
 
 def analyze_trends(current_behavior: dict, history: list):
     """
@@ -169,22 +219,16 @@ def predict_and_recommend(payload: BehaviorPayload):
     # 3) (Optional) Pull history for later steps (we will use it later)
     history = get_user_behavior_history(user_id, limit=8)
     
-    # 4) Prepare model input and predict
-    try:
-        X_df = prepare_input_df(behavior)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error preparing model input: {e}")
+    # 4️⃣ Prepare model input and predict
+    X_df = prepare_input_df(behavior)
+    X_proc = preprocessor.transform(X_df)
+    pred = model.predict(X_proc)[0]
+    predicted_score = float(pred)
+
+    # 5️⃣ Global feature importances (existing)
+    importances = {}  # ✅ ensure variable always exists
 
     try:
-        X_proc = preprocessor.transform(X_df)
-        pred = model.predict(X_proc)[0]
-        predicted_score = float(pred)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Model prediction error: {e}")
-
-       # 5) Get global feature importances (quick top drivers)
-    try:
-        importances = {}
         fi = getattr(model, "feature_importances_", None)
         if fi is not None:
             for fname, score in zip(FEATURES, fi):
@@ -194,23 +238,32 @@ def predict_and_recommend(payload: BehaviorPayload):
             top_drivers = [{"feature": k, "importance": v} for k, v in sorted_items]
         else:
             top_drivers = []
-    except Exception:
-        importances = {}
+    except Exception as e:
+        print(f"⚠️ Error computing feature importances: {e}")
         top_drivers = []
 
-    # ✅ Now outside the try/except — this always runs
-        # 7️⃣ Generate recommendations
+    # 6️⃣ 🔍 NEW — Compute SHAP local explanations
+    shap_values = {}
+    if explainer is not None:
+        try:
+            shap_raw = explainer.shap_values(X_proc)
+            # shap_raw is a list if model is multiclass
+            if isinstance(shap_raw, list):
+                shap_raw = shap_raw[0]
+            # Convert single-row array to dict {feature: value}
+            shap_dict = {FEATURES[i]: float(shap_raw[0][i]) for i in range(len(FEATURES))}
+            # Keep top 5 absolute contributors
+            shap_values = dict(sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:5])
+        except Exception as e:
+            print(f"⚠️ SHAP explanation error: {e}")
+
+    # 7️⃣ Generate recommendations (existing)
     recommendations = generate_recommendations(behavior, importances)
 
-    # 🧠 Debug print (check output)
-    print("🧠 Recommendations generated:", recommendations)
+    # 8️⃣ Trend analysis (already implemented)
+    trend_insights = compute_trend_insights(history)
 
-    # Analyze trends using history (history list from Firestore)
-    trend_insights = analyze_trends(behavior, history)
-    print("📈 Trend insights:", trend_insights)
-
-    # 8️⃣ Save prediction + recs + trend insights to Firestore
-    # 8️⃣ Save prediction + recs + trend insights to Firestore
+    # 9️⃣ Save everything (NEW field shap_explanation)
     save_prediction(
         user_id,
         predicted_score,
@@ -218,8 +271,18 @@ def predict_and_recommend(payload: BehaviorPayload):
         importances,
         recommendations,
         timestamp=timestamp,
-        trend_insights=trend_insights
+        trend_insights=trend_insights,
+        shap_explanation=shap_values  # NEW ✅
     )
+
+    return {
+        "predicted_score": predicted_score,
+        "recommendations": recommendations,
+        "trend_insights": trend_insights,
+        "top_drivers": top_drivers,
+        "shap_explanation": shap_values,
+        "saved": True
+    }
 
 
 
@@ -246,6 +309,7 @@ def get_latest_prediction_endpoint(user_id: str):
         "predicted_score": result.get("predicted_score"),
         "recommendations": result.get("recommendations", []),
         "trend_insights": result.get("trend_insights", []),
+        "shap_explanation": result.get("shap_explanation", {}),
         "timestamp": result.get("timestamp"),
     }
 
