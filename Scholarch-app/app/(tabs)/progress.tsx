@@ -12,10 +12,10 @@ interface Prediction {
 }
 
 interface BehaviorLog {
-  studyHours: number;
-  attendance: number;
-  stressLevel: number;
-  assignmentCompletion: number;
+  StudyHours: number;
+  Attendance: number;
+  StressLevel: number;
+  AssignmentCompletion: number;
   timestamp: Date | null;
 }
 
@@ -49,10 +49,10 @@ export default function ProgressScreen() {
         );
         const logsSnap = await getDocs(logsQuery);
         const logs = logsSnap.docs.map((doc) => ({
-          studyHours: doc.data().studyHours || 0,
-          attendance: doc.data().attendance || 0,
-          stressLevel: doc.data().stressLevel || 0,
-          assignmentCompletion: doc.data().assignmentCompletion || 0,
+          StudyHours: doc.data().StudyHours || 0,
+          Attendance: doc.data().Attendance || 0,
+          StressLevel: doc.data().StressLevel || 0,
+          AssignmentCompletion: doc.data().AssignmentCompletion || 0,
           timestamp: doc.data().timestamp?.toDate() || null,
         }));
         setBehaviorLogs(logs);
@@ -90,9 +90,9 @@ export default function ProgressScreen() {
       ? behaviorLogs.reduce((sum, l) => sum + (l[key] as number), 0) / behaviorLogs.length
       : 0;
 
-  const avgStudyHours = avg("studyHours");
-  const avgStress = avg("stressLevel");
-  const avgAttendance = avg("attendance");
+  const avgStudyHours = avg("StudyHours");
+  const avgStress = avg("StressLevel");
+  const avgAttendance = avg("Attendance");
 
   // ----------------- Chart Config -----------------
   const chartConfig = {

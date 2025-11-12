@@ -62,7 +62,7 @@ def generate_recommendations(behavior: dict, importances: dict):
         recs.append("Ensure timely completion of assignments to reinforce learning.")
     if online_courses == 0:
         recs.append("Consider taking short online courses to strengthen weak areas.")
-    if discussions < 2:
+    if discussions < 1:
         recs.append("Participate more in study discussions or group work to improve understanding.")
 
     # Prioritize recommendations for top important features
