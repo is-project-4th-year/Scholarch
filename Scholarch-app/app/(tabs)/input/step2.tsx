@@ -7,12 +7,13 @@ import { yesNoLabels,stressLevelLabels } from "@/lib/behaviorLabels";
 
 export default function Step2({ navigation }: any) {
   const {
-    internet,
-    discussions,
-    onlineCourses,
-    extracurricular,
-    eduTech,
-    stressLevel,
+    Internet,
+    Discussions,
+    OnlineCourses,
+    Extracurricular,
+    EduTech,
+    Resources,
+    StressLevel,
     updateField,
   } = useBehaviorFormStore();
 
@@ -37,18 +38,28 @@ export default function Step2({ navigation }: any) {
         Step 2: Technology & Lifestyle
       </Text>
 
-      {renderYesNoGroup("Do you have reliable Internet access?", "internet")}
-      {renderYesNoGroup("Do you often participate in discussions?", "discussions")}
-      {renderYesNoGroup("Do you take online courses?", "onlineCourses")}
-      {renderYesNoGroup("Do you have access to resources?", "resources")}
-      {renderYesNoGroup("Are you engaged in extracurricular activities?", "extracurricular")}
-      {renderYesNoGroup("Do you use educational technology tools?", "eduTech")}
+      {renderYesNoGroup("Do you have reliable Internet access?", "Internet")}
+      {renderYesNoGroup("Do you often participate in discussions?", "Discussions")}
+      {renderYesNoGroup("Do you take online courses?", "OnlineCourses")}
+      {renderYesNoGroup("Are you engaged in Extracurricular activities?", "Extracurricular")}
+      {renderYesNoGroup("Do you use educational technology tools?", "EduTech")}
+
+      {/*Acess to resources*/}
+      <Text variant="titleMedium" style={styles.label}>Access to resources</Text>
+      <RadioButton.Group
+        onValueChange={(val: string) => updateField("Resources", Number(val))}
+        value={String(Resources)}
+      >
+        {stressLevelLabels.map((label: string, index: number) => (
+          <RadioButton.Item key={index} label={label} value={String(index)} />
+        ))}
+      </RadioButton.Group>
 
       {/* Stress Level */}
       <Text variant="titleMedium" style={styles.label}>Stress Level</Text>
       <RadioButton.Group
-        onValueChange={(val: string) => updateField("stressLevel", Number(val))}
-        value={String(stressLevel)}
+        onValueChange={(val: string) => updateField("StressLevel", Number(val))}
+        value={String(StressLevel)}
       >
         {stressLevelLabels.map((label: string, index: number) => (
           <RadioButton.Item key={index} label={label} value={String(index)} />

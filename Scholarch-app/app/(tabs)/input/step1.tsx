@@ -8,11 +8,11 @@ import {motivationLabels, learningStyleLabels} from "@/lib/behaviorLabels";
 
 export default function Step1({ navigation }: any) {
   const {
-    studyHours,
-    attendance,
-    assignmentCompletion,
-    motivation,
-    learningStyle,
+    StudyHours,
+    Attendance,
+    AssignmentCompletion,
+    Motivation,
+    LearningStyle,
     updateField,
   } = useBehaviorFormStore();
 
@@ -27,8 +27,8 @@ export default function Step1({ navigation }: any) {
         label="Study Hours per Week"
         keyboardType="numeric"
         mode="outlined"
-        value={String(studyHours)}
-        onChangeText={(val) => updateField("studyHours", Number(val))}
+        value={String(StudyHours)}
+        onChangeText={(val) => updateField("StudyHours", Number(val))}
         style={styles.input}
       />
 
@@ -37,8 +37,8 @@ export default function Step1({ navigation }: any) {
         label="Attendance (%)"
         keyboardType="numeric"
         mode="outlined"
-        value={String(attendance)}
-        onChangeText={(val) => updateField("attendance", Number(val))}
+        value={String(Attendance)}
+        onChangeText={(val) => updateField("Attendance", Number(val))}
         style={styles.input}
       />
 
@@ -47,9 +47,9 @@ export default function Step1({ navigation }: any) {
         label="Assignment Completion (%)"
         keyboardType="numeric"
         mode="outlined"
-        value={String(assignmentCompletion)}
+        value={String(AssignmentCompletion)}
         onChangeText={(val) =>
-          updateField("assignmentCompletion", Number(val))
+          updateField("AssignmentCompletion", Number(val))
         }
         style={styles.input}
       />
@@ -59,8 +59,8 @@ export default function Step1({ navigation }: any) {
         Motivation Level
       </Text>
       <RadioButton.Group
-        onValueChange={(val) => updateField("motivation", Number(val))}
-        value={String(motivation)}
+        onValueChange={(val) => updateField("Motivation", Number(val))}
+        value={String(Motivation)}
       >
         {motivationLabels.map((label, index) => (
           <RadioButton.Item key={index} label={label} value={String(index)} />
@@ -72,8 +72,8 @@ export default function Step1({ navigation }: any) {
         Learning Style
       </Text>
       <RadioButton.Group
-        onValueChange={(val) => updateField("learningStyle", Number(val))}
-        value={String(learningStyle)}
+        onValueChange={(val) => updateField("LearningStyle", Number(val))}
+        value={String(LearningStyle)}
       >
         {learningStyleLabels.map((label, index) => (
           <RadioButton.Item key={index} label={label} value={String(index)} />

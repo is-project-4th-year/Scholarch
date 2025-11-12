@@ -62,7 +62,7 @@ def generate_recommendations(behavior: dict, importances: dict):
         recs.append("Ensure timely completion of assignments to reinforce learning.")
     if online_courses == 0:
         recs.append("Consider taking short online courses to strengthen weak areas.")
-    if discussions < 2:
+    if discussions < 1:
         recs.append("Participate more in study discussions or group work to improve understanding.")
 
     # Prioritize recommendations for top important features
@@ -144,12 +144,20 @@ def analyze_trends(current_behavior: dict, history: list):
 # --- Utility to prepare input for model ---
 def prepare_input_df(behavior: Dict[str, Any]) -> pd.DataFrame:
     """
-    Build a single-row DataFrame with columns in the same order as FEATURES.
-    Missing features -> KeyError (helps catch payload mismatch).
+    Map frontend keys (camelCase) to the model’s expected TitleCase FEATURES.
+    Ensures column names match exactly what the model saw during training.
     """
-    # Ensure all feature names are present in behavior (or fill with np.nan)
-    row = {f: behavior.get(f, np.nan) for f in FEATURES}
+    row = {}
+    for f in FEATURES:
+        # Example: StudyHours -> studyhours
+        normalized_key = f.lower()
+        # Find frontend key that matches ignoring case
+        matched = next((k for k in behavior.keys() if k.lower() == normalized_key), None)
+        row[f] = behavior.get(matched, np.nan)
+
     df = pd.DataFrame([row], columns=FEATURES)
+    print("✅ Prepared DataFrame columns:", list(df.columns))
+    print("✅ Row data for prediction:", row)
     return df
 
 # --- Endpoint ---
@@ -160,10 +168,18 @@ def predict_and_recommend(payload: BehaviorPayload):
     behavior = payload.behavior
     timestamp = payload.timestamp
 
+    print("\n======================")
+    print(f"📩 Incoming request from user: {user_id}")
+    print("🔍 Raw behavior payload:", behavior)
+    print("🔍 Expected FEATURES:", FEATURES)
+    print("======================\n")
+
+
     if not user_id or not isinstance(behavior, dict):
         raise HTTPException(status_code=400, detail="Missing user_id or behavior payload")
 
     # 2) Save behavior to Firestore (latest + history)
+
     save_behavior_to_firestore(user_id, behavior, timestamp)
 
     # 3) (Optional) Pull history for later steps (we will use it later)

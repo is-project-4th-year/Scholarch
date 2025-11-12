@@ -15,18 +15,18 @@ import {
 } from "@/lib/behaviorLabels";
 
 interface BehaviorData {
-  studyHours: number;
-  attendance: number;
-  resources: number;
-  extracurricular: number;
-  motivation: number;
-  internet: boolean;
-  learningStyle: string;
-  onlineCourses: number;
-  discussions: number;
-  assignmentCompletion: number;
-  eduTech: number;
-  stressLevel: string;
+  StudyHours: number;
+  Attendance: number;
+  Resources: number;
+  Extracurricular: number;
+  Motivation: number;
+  Internet: boolean;
+  LearningStyle: string;
+  OnlineCourses: number;
+  Discussions: number;
+  AssignmentCompletion: number;
+  EduTech: number;
+  StressLevel: string;
   lastUpdated?: any;
 }
 
@@ -70,20 +70,20 @@ export default function SummaryScreen() {
 
   return (
     <View>
-       <Text>Study Hours: {data.studyHours}</Text>
-      <Text>Attendance: {data.attendance}%</Text>
-      <Text>Assignment Completion: {data.assignmentCompletion}%</Text>
+       <Text>Study Hours: {data.StudyHours}</Text>
+      <Text>Attendance: {data.Attendance}%</Text>
+      <Text>Assignment Completion: {data.AssignmentCompletion}%</Text>
 
-      <Text>Motivation: {labelFor(motivationLabels, data.motivation)}</Text>
-      <Text>Learning Style: {labelFor(learningStyleLabels, Number(data.learningStyle))}</Text>
-      <Text>Stress Level: {labelFor(stressLevelLabels, Number(data.stressLevel))}</Text>
-      <Text>Resource Access: {labelFor(resourceAccessLabels, data.resources)}</Text>
+      <Text>Motivation: {labelFor(motivationLabels, data.Motivation)}</Text>
+      <Text>Learning Style: {labelFor(learningStyleLabels, Number(data.LearningStyle))}</Text>
+      <Text>Stress Level: {labelFor(stressLevelLabels, Number(data.StressLevel))}</Text>
+      <Text>Resource Access: {labelFor(resourceAccessLabels, data.Resources)}</Text>
 
-      <Text>Internet Access: {labelFor(yesNoLabels, Number(data.internet))}</Text>
-      <Text>Participates in Discussions: {labelFor(yesNoLabels, data.discussions)}</Text>
-      <Text>Online Courses: {labelFor(yesNoLabels, data.onlineCourses)}</Text>
-      <Text>Extracurricular Activities: {labelFor(yesNoLabels, data.extracurricular)}</Text>
-      <Text>Uses EduTech Tools: {labelFor(yesNoLabels, data.eduTech)}</Text>
+      <Text>Internet Access: {labelFor(yesNoLabels, Number(data.Internet))}</Text>
+      <Text>Participates in Discussions: {labelFor(yesNoLabels, data.Discussions)}</Text>
+      <Text>Online Courses: {labelFor(yesNoLabels, data.OnlineCourses)}</Text>
+      <Text>Extracurricular Activities: {labelFor(yesNoLabels, data.Extracurricular)}</Text>
+      <Text>Uses EduTech Tools: {labelFor(yesNoLabels, data.EduTech)}</Text>
 
       
     </View>

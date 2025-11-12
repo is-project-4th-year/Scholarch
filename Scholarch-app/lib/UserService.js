@@ -17,17 +17,17 @@ export const createUserProfile = async (profileData) => {
         learningStyle: profileData.learningStyle
       },
       behavior: {
-        studyHours: 0,
-        attendance: 0,
-        resources: 0,
-        extracurricular: 0,
-        motivation: 0,
-        internet: 0,
-        onlineCourses: 0,
-        discussions: 0,
-        assignmentCompletion: 0,
-        eduTech: 0,
-        stressLevel: 0,
+        StudyHours: 0,
+        Attendance: 0,
+        Resources: 0,
+        Extracurricular: 0,
+        Motivation: 0,
+        Internet: 0,
+        OnlineCourses: 0,
+        Discussions: 0,
+        AssignmentCompletion: 0,
+        EduTech: 0,
+        StressLevel: 0,
         lastUpdated: serverTimestamp()
       },
       predictions: {
