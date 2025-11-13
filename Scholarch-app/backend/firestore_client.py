@@ -2,6 +2,7 @@
 
 import os
 import firebase_admin
+import math
 from firebase_admin import credentials, firestore
 from dotenv import load_dotenv
 from datetime import datetime
@@ -18,6 +19,21 @@ if not firebase_admin._apps:
 # ✅ Create Firestore client
 db = firestore.client()
 print("✅ Firestore client initialized successfully.")
+
+
+
+def clean_json(data):
+    """Recursively replace NaN/Infinity with None for Firestore/JSON safety."""
+    if isinstance(data, dict):
+        return {k: clean_json(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [clean_json(v) for v in data]
+    elif isinstance(data, float):
+        if math.isnan(data) or math.isinf(data):
+            return None
+        return float(data)
+    else:
+        return data
 
 
 # ─────────────────────────────────────────────
@@ -65,6 +81,34 @@ def get_user_behavior_history(user_id: str, limit: int = 8):
     return records
 
 
+def get_user_behavior_and_predictions(user_id: str, limit: int = 100):
+    """
+    Returns a list of dicts with feature columns and PredictedScore.
+    We will try to align names with FEATURES used in your model.
+    """
+    # Fetch behavior logs
+    logs_ref = db.collection(f"users/{user_id}/behavior_logs").order_by("timestamp", direction=firestore.Query.ASCENDING).limit(limit)
+    logs = [doc.to_dict() for doc in logs_ref.stream()]
+
+    # Fetch predictions (mapping by timestamp if available)
+    preds_ref = db.collection(f"users/{user_id}/predictions").order_by("timestamp", direction=firestore.Query.ASCENDING).limit(limit)
+    preds = [doc.to_dict() for doc in preds_ref.stream()]
+
+    # naive merge: align by order (assumes logs and predictions are saved in same cadence)
+    merged = []
+    # build list of prediction scores
+    pred_scores = [p.get("predicted_score") for p in preds]
+    n = max(len(logs), len(pred_scores))
+    for i in range(n):
+        row = {}
+        if i < len(logs):
+            row.update(logs[i])
+        # attach predicted score if exists at same index, else None
+        row["PredictedScore"] = pred_scores[i] if i < len(pred_scores) else None
+        merged.append(row)
+    return merged
+
+
 # ─────────────────────────────────────────────
 # 3️⃣ Save prediction and recommendations
 # ─────────────────────────────────────────────
@@ -75,14 +119,22 @@ def save_prediction(
     importances,
     recommendations,
     timestamp=None,
-    trend_insights=None
+    trend_insights=None,
+    data_driven_recommendations=None,
+    correlation_stats=None,
+    trend_summary=None
 ):
     """
     Save prediction results, recommendations, and optional trend insights to Firestore.
     Each prediction is stored as a new document in the user's 'predictions' subcollection.
     """
     try:
-        doc_ref = db.collection("users").document(user_id).collection("predictions").document()
+        doc_ref = (
+            db.collection("users")
+            .document(user_id)
+            .collection("predictions")
+            .document()
+        )
 
         data = {
             "timestamp": timestamp or firestore.SERVER_TIMESTAMP,
@@ -91,13 +143,24 @@ def save_prediction(
             "recommendations": recommendations,
             "importances": importances,
             "trend_insights": trend_insights or [],
+            "data_driven_recommendations": data_driven_recommendations or [],
+            "correlation_stats": correlation_stats or {},
+            "trend_summary": trend_summary or "",
         }
 
-        doc_ref.set(data)
+        # 🧹 Clean data to remove NaN/Infinity before saving
+        safe_data = clean_json(data)
+
+        print("🧹 Cleaned Firestore data:", safe_data)
+
+
+        doc_ref.set(safe_data)
         print(f"✅ Prediction and trends saved for user: {user_id}")
 
     except Exception as e:
         print(f"❌ Error saving prediction for user {user_id}: {e}")
+
+
 
 def get_latest_prediction(user_id):
     """

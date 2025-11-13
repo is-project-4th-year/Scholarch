@@ -39,6 +39,17 @@ export default function forgotpassword() {
       <Button
         mode="contained"
         onPress={() => {
+          router.back();
+          console.log("Back to login");
+        }}
+      >
+        {" "}
+        Back to login{" "}
+      </Button>
+
+      <Button
+        mode="contained"
+        onPress={() => {
           console.log("Reset Password");
           handleResetPassword();
         }}
