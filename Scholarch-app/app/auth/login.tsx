@@ -77,16 +77,16 @@ export default function login() {
         
       />
 
-      <TouchableOpacity
+       <Button
+        mode="text"
         onPress={() => {
-          console.log("Navigate to Forgot Password");
+          console.log("Navigate to forgot password");
           router.push("/auth/forgotpassword");
         }}
       >
-        <Text style={{ color: "blue", marginBottom: 20 }}>
-          Forgot Password?
-        </Text>
-      </TouchableOpacity>
+        Forgot your Password?
+      </Button>
+
 
 
        <Button

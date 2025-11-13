@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, ActivityIndicator, ScrollView } from "react-native";
+import { View, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from "react-native";
 import { Button, Text, Card } from "react-native-paper";
 import { collection, query, orderBy, limit, onSnapshot, doc, getDoc } from "firebase/firestore";
 import { formatDate } from "@/lib/dateUtils";
@@ -92,60 +92,107 @@ export default function HomeScreen() {
       <Text variant="headlineMedium" style={styles.header}>
         🎓 Your Academic Dashboard
       </Text>
+      <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.greeting}>yryryryryryryryryr</Text>
+            {/* <Text style={styles.date}>{currentDate}</Text> */}
+        </View>
+      </View>
 
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text variant="titleMedium">Predicted Exam Score</Text>
-          <Text style={styles.score}>{prediction.predicted_score.toFixed(2)}%</Text>
-          <Text style={styles.timestamp}>
-            Last Updated: {prediction.timestamp || "N/A"}
+      {/* Main content */}
+      <View style={styles.content}>
+        {/* Performance Summary Card */}
+        <View style={styles.summaryCard}>
+          <View style={styles.summaryHeader}>
+            <Text style={styles.summaryTitle}>Overall Performance</Text>
+            <View style={styles.trendBadge}>
+              <Text style={styles.trendText}>📈 Improving</Text>
+            </View>
+          </View>
+          <View style={styles.scoreContainer}>
+            <Text style={styles.scoreValue}>{prediction.predicted_score.toFixed(2)}%</Text>
+            <Text style={styles.scoreLabel}>Predicted Exam Score</Text>
+          </View>
+          <Text style={styles.motivationText}>
+            Keep learning...to the end of your life.
           </Text>
-        </Card.Content>
-      </Card>
+        </View>
+        {/* Recommendations Section */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>💡 Recommendations</Text>
+                <Text style={styles.sectionSubtitle}>Personalized tips to improve</Text>
+              </View>
+              
+              {prediction.recommendations && prediction.recommendations.length > 0 ? (
+                <View style={styles.insightCard}>
+                  {prediction.recommendations.map((rec: string, idx: number) => (
+                    <View key={idx} style={styles.insightItem}>
+                      <View style={styles.insightBullet}>
+                        <Text style={styles.bulletNumber}>{idx + 1}</Text>
+                      </View>
+                      <Text style={styles.insightText}>{rec}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyCard}>
+                  <Text style={styles.emptyText}>No recommendations available yet.</Text>
+                  <Text style={styles.emptySubtext}>Complete more activities to get personalized insights</Text>
+                </View>
+              )}
+            </View>
 
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text variant="titleMedium">📋 Recommendations</Text>
-          {prediction.recommendations && prediction.recommendations.length > 0 ? (
-            prediction.recommendations.map((rec: string, idx: number) => (
-              <Text key={idx} style={styles.recommendation}>• {rec}</Text>
-            ))
-          ) : (
-            <Text>No recommendations found.</Text>
-          )}
-        </Card.Content>
-      </Card>
+            {/* Trend Insights Section */}
+            {prediction.trend_insights && prediction.trend_insights.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>📈 Trend Insights</Text>
+                  <Text style={styles.sectionSubtitle}>What the data shows</Text>
+                </View>
+                
+                <View style={styles.trendCard}>
+                  {prediction.trend_insights.map((insight: string, idx: number) => (
+                    <View key={idx} style={styles.trendItem}>
+                      <View style={styles.trendIndicator} />
+                      <Text style={styles.trendText}>{insight}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
 
-      {prediction.trend_insights && prediction.trend_insights.length > 0 && (
-        <Card style={styles.card}>
-          <Card.Content>
-            <Text variant="titleMedium">📈 Trend Insights</Text>
-            {prediction.trend_insights.map((insight: string, idx: number) => (
-              <Text key={idx} style={styles.trend}>• {insight}</Text>
-            ))}
+            {/* Action Buttons */}
+            <View style={styles.actionButtons}>
+              <TouchableOpacity 
+                style={styles.primaryButton}
+                onPress={handleRefresh}
+                disabled={loading}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {loading ? 'Refreshing...' : '🔄 Refresh Results'}
+                </Text>
+              </TouchableOpacity>
 
-          </Card.Content>
-        </Card>
-      )}
+              <TouchableOpacity 
+                style={styles.secondaryButton}
+                onPress={() => router.push('/input/step1')}
+              >
+                <Text style={styles.secondaryButtonText}>📝 Update Behaviour Data</Text>
+              </TouchableOpacity>
+            </View>
 
-      <Button mode="contained" style={styles.refreshButton} onPress={handleRefresh}>
-        Refresh Data
-      </Button>
+      </View>
 
-      <Button
-        mode="outlined"
-        onPress={() => router.push("/input/step1")}
-        style={styles.refreshButton}
-      >
-        Update Behavior Data
-      </Button>
+
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    padding: 16,
+    flex: 1,
+    backgroundColor: '#f9fafb',
   },
   center: {
     flex: 1,
@@ -153,9 +200,225 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   header: {
-    textAlign: "center",
+    paddingTop: 60,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  greeting: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 4,
+  },
+  date: {
+    fontSize: 14,
+    color: '#e0e7ff',
+  },
+  notificationBadge: {
+    backgroundColor: '#ffffff',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notificationText: {
+    color: '#6366f1',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  content: {
+    padding: 20,
+    paddingTop: 0,
+    marginTop: -20,
+  },
+  summaryCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 20,
+    padding: 24,
     marginBottom: 20,
-    fontWeight: "600",
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  summaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  trendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#d1fae5',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  trendText: {
+    color: '#10b981',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  scoreContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  scoreValue: {
+    fontSize: 52,
+    fontWeight: '700',
+    color: '#6366f1',
+    marginBottom: 4,
+  },
+  scoreLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#6366f1',
+    borderRadius: 4,
+  },
+  motivationText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 24,
+  },
+  statCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    flex: 1,
+    minWidth: '47%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statEmoji: {
+    fontSize: 22,
+  },
+  statValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  actionCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  actionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionEmoji: {
+    fontSize: 24,
+  },
+  actionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  actionSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  chevron: {
+    fontSize: 24,
+    color: '#9ca3af',
+  },
+  activityCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    paddingLeft: 4,
+  },
+  activityDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#6366f1',
+    marginTop: 6,
+    marginRight: 12,
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 14,
+    color: '#1f2937',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  activityTime: {
+    fontSize: 12,
+    color: '#9ca3af',
   },
   card: {
     marginBottom: 16,
@@ -187,4 +450,137 @@ const styles = StyleSheet.create({
   refreshButton: {
     marginTop: 10,
   },
+  emptyCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+   sectionHeader: {
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  insightCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  insightItem: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    alignItems: 'flex-start',
+  },
+  insightBullet: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#ede9fe',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    marginTop: 2,
+  },
+  bulletNumber: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6366f1',
+  },
+  insightText: {
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#374151',
+  },
+   trendCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  trendItem: {
+    flexDirection: 'row',
+    marginBottom: 14,
+    alignItems: 'flex-start',
+  },
+  trendIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#3b82f6',
+    marginRight: 12,
+    marginTop: 8,
+  },
+
+   actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: '#6366f1',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    shadowColor: '#6366f1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  secondaryButton: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+  },
+  secondaryButtonText: {
+    color: '#1f2937',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  
 });

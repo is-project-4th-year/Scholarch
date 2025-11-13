@@ -3,9 +3,12 @@ import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any, Optional
+from insight_engine import compute_feature_correlations, generate_data_driven_recommendations, summarize_behavior_trends
+from firestore_client import get_user_behavior_and_predictions, save_prediction  
 import joblib
 import pandas as pd
 import numpy as np
+import math
 
 # Firestore helpers (your module)
 from firestore_client import save_behavior_to_firestore, get_user_behavior_history, save_prediction
@@ -13,6 +16,93 @@ from firestore_client import save_behavior_to_firestore, get_user_behavior_histo
 # Load env (if using .env)
 from dotenv import load_dotenv
 load_dotenv()
+
+def sanitize_for_json(obj):
+    """Recursively replace NaN, inf, -inf with None in dicts/lists."""
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [sanitize_for_json(v) for v in obj]
+    elif isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    else:
+        return obj
+
+# 🔹 --- Feature Importance Helper ---
+def get_feature_importances(model, FEATURES):
+    """
+    Extract feature importances from a trained model and return a consistent dictionary.
+    Handles models with or without the 'feature_importances_' attribute.
+    """
+    importances = {}
+
+    try:
+        fi = getattr(model, "feature_importances_", None)
+        if fi is not None:
+            for fname, score in zip(FEATURES, fi):
+                importances[fname] = float(score)
+        else:
+            coefs = getattr(model, "coef_", None)
+            if coefs is not None:
+                for fname, score in zip(FEATURES, coefs.flatten()):
+                    importances[fname] = float(abs(score))
+    except Exception as e:
+        print(f"⚠️ Error extracting feature importances: {e}")
+        importances = {}
+
+    if isinstance(importances, list):
+        importances = {i["feature"]: i["importance"] for i in importances if isinstance(i, dict)}
+
+    return importances
+
+
+# 🔹 --- Recommendation Generator ---
+def generate_recommendations(behavior: dict, importances: dict):
+    """
+    Generate actionable recommendations based on behavior data and model insights.
+    Prioritizes the most influential features.
+    """
+    recs = []
+
+    study_hours = behavior.get("StudyHours", behavior.get("studyHours", 0))
+    attendance = behavior.get("Attendance", behavior.get("attendance", 0))
+    motivation = behavior.get("Motivation", behavior.get("motivation", 1))
+    stress = behavior.get("StressLevel", behavior.get("stressLevel", 1))
+    assignment_completion = behavior.get("AssignmentCompletion", behavior.get("assignmentCompletion", 0))
+    online_courses = behavior.get("OnlineCourses", behavior.get("onlineCourses", 0))
+    discussions = behavior.get("Discussions", behavior.get("discussions", 0))
+
+    if study_hours < 15:
+        recs.append("Increase weekly study hours to at least 15 hours for better comprehension.")
+    if attendance < 75:
+        recs.append("Attend classes regularly to maintain consistent learning.")
+    if motivation < 1:
+        recs.append("Set clear study goals or use motivation trackers to stay engaged.")
+    if stress > 2:
+        recs.append("High stress levels detected — schedule breaks and rest effectively.")
+    if assignment_completion < 70:
+        recs.append("Ensure timely completion of assignments to reinforce learning.")
+    if online_courses == 0:
+        recs.append("Consider taking short online courses to strengthen weak areas.")
+    if discussions < 2:
+        recs.append("Participate more in study discussions or group work to improve understanding.")
+
+    if isinstance(importances, dict):
+        important_feats = sorted(importances.items(), key=lambda x: x[1], reverse=True)[:5]
+    elif isinstance(importances, list):
+        important_feats = [(i["feature"], i["importance"]) for i in importances if isinstance(i, dict)]
+    else:
+        important_feats = []
+
+    important_names = [f[0].lower() for f in important_feats]
+    prioritized_recs = [r for r in recs if any(name in r.lower() for name in important_names)]
+    if not prioritized_recs:
+        prioritized_recs = recs
+
+    return prioritized_recs
+
 
 app = FastAPI(title="Scholarch ML API")
 
@@ -36,109 +126,48 @@ class BehaviorPayload(BaseModel):
 
 
 # --- Simple recommendation engine ---
-def generate_recommendations(behavior: dict, importances: dict):
-    """Generate actionable recommendations based on student behavior and model insights."""
-    recs = []
 
-    # Extract safe values (use .get to avoid KeyError)
-    study_hours = behavior.get("StudyHours", 0)
-    attendance = behavior.get("Attendance", 0)
-    motivation = behavior.get("Motivation", 1)
-    stress = behavior.get("StressLevel", 1)
-    assignment_completion = behavior.get("AssignmentCompletion", 0)
-    online_courses = behavior.get("OnlineCourses", 0)
-    discussions = behavior.get("Discussions", 0)
-
-    # Apply simple behavioral rules
-    if study_hours < 15:
-        recs.append("Increase weekly study hours to at least 15 hours for better comprehension.")
-    if attendance < 75:
-        recs.append("Attend classes regularly to maintain consistent learning.")
-    if motivation < 1:
-        recs.append("Set clear study goals or use motivation trackers to stay engaged.")
-    if stress > 2:
-        recs.append("High stress levels detected — schedule breaks and rest effectively.")
-    if assignment_completion < 70:
-        recs.append("Ensure timely completion of assignments to reinforce learning.")
-    if online_courses == 0:
-        recs.append("Consider taking short online courses to strengthen weak areas.")
-    if discussions < 1:
-        recs.append("Participate more in study discussions or group work to improve understanding.")
-
-    # Prioritize recommendations for top important features
-    important_feats = sorted(importances.items(), key=lambda x: x[1], reverse=True)[:5]
-    important_names = [f[0] for f in important_feats]
-
-    prioritized_recs = [r for r in recs if any(name.lower() in r.lower() for name in important_names)]
-    # Fallback: if no overlaps, return all recs
-    if not prioritized_recs:
-        prioritized_recs = recs
-
-    return prioritized_recs
-
-def analyze_trends(current_behavior: dict, history: list):
-    """
-    Compare current behavior with the most recent previous record(s) to detect
-    simple trends. `history` is expected to be a list of dicts (most-recent-first).
-    Returns a list of human-readable trend insight strings.
-    """
+def analyze_trends(history):
+    """Compute insights comparing the most recent and previous behavior entries."""
     if not history or len(history) == 0:
         return ["No prior data available to compute trends yet."]
 
-    # history is returned by get_user_behavior_history() in descending order,
-    # where history[0] is the most recent previous record.
-    previous = history[0]
+    # ✅ Ensure history is a list
+    if isinstance(history, dict):
+        history = list(history.values())
+
+    # ✅ Ensure it’s sorted by timestamp if possible
+    if isinstance(history[0], dict) and "timestamp" in history[0]:
+        history = sorted(history, key=lambda x: x.get("timestamp", 0), reverse=True)
+
+    if len(history) < 2:
+        return ["No significant changes detected — not enough history for trend analysis."]
+
+    # ✅ Now safe to access
+    previous = history[1]
+    latest = history[0]
 
     insights = []
 
-    # Helper to safely get numeric fields (fallback to None if missing)
-    def val(obj, key):
-        try:
-            return float(obj.get(key)) if obj.get(key) is not None else None
-        except Exception:
-            return None
+    # Compare some key metrics
+    if "StudyHours" in latest and "StudyHours" in previous:
+        diff = latest["StudyHours"] - previous["StudyHours"]
+        if diff > 0:
+            insights.append(f"Study hours increased by {diff:.1f} hrs compared to the last record — good progress.")
+        elif diff < 0:
+            insights.append(f"Study hours decreased by {abs(diff):.1f} hrs — try to maintain consistent study time.")
 
-    # Study hours trend
-    cur_sh = val(current_behavior, "StudyHours")
-    prev_sh = val(previous, "StudyHours")
-    if prev_sh is not None and cur_sh is not None:
-        if cur_sh >= prev_sh * 1.10:
-            insights.append(f"Study hours increased by {cur_sh - prev_sh:.1f} hrs compared to the last record — good progress.")
-        elif cur_sh <= prev_sh * 0.90:
-            insights.append(f"Study hours decreased by {prev_sh - cur_sh:.1f} hrs from the last record — try to maintain consistency.")
-
-    # Attendance trend
-    cur_att = val(current_behavior, "Attendance")
-    prev_att = val(previous, "Attendance")
-    if prev_att is not None and cur_att is not None:
-        if cur_att >= prev_att + 5:
-            insights.append("Attendance improved compared to the previous period — keep attending regularly.")
-        elif cur_att <= prev_att - 5:
-            insights.append("Attendance dropped since the previous record; improving attendance often helps performance.")
-
-    # Assignment completion trend
-    cur_ac = val(current_behavior, "AssignmentCompletion")
-    prev_ac = val(previous, "AssignmentCompletion")
-    if prev_ac is not None and cur_ac is not None:
-        if cur_ac >= prev_ac + 5:
-            insights.append("Assignment completion rate increased — good for consistent learning.")
-        elif cur_ac <= prev_ac - 5:
-            insights.append("Assignment completion decreased notably — aim to submit more assignments on time.")
-
-    # Stress level trend (assume higher = worse)
-    cur_st = val(current_behavior, "StressLevel")
-    prev_st = val(previous, "StressLevel")
-    if prev_st is not None and cur_st is not None:
-        if cur_st > prev_st:
+    if "StressLevel" in latest and "StressLevel" in previous:
+        if latest["StressLevel"] > previous["StressLevel"]:
             insights.append("Stress level increased compared to the previous record — consider rest or stress-reduction steps.")
-        elif cur_st < prev_st:
-            insights.append("Stress level decreased — that's positive for focus and learning.")
+        elif latest["StressLevel"] < previous["StressLevel"]:
+            insights.append("Stress level reduced — good emotional management!")
 
-    # If nothing noteworthy
     if not insights:
         insights.append("No significant changes detected — behavior looks stable compared to recent history.")
 
     return insights
+
 
 
 # --- Utility to prepare input for model ---
@@ -198,21 +227,16 @@ def predict_and_recommend(payload: BehaviorPayload):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Model prediction error: {e}")
 
-       # 5) Get global feature importances (quick top drivers)
-    try:
-        importances = {}
-        fi = getattr(model, "feature_importances_", None)
-        if fi is not None:
-            for fname, score in zip(FEATURES, fi):
-                importances[fname] = float(score)
-            # construct top drivers
-            sorted_items = sorted(importances.items(), key=lambda x: x[1], reverse=True)[:5]
-            top_drivers = [{"feature": k, "importance": v} for k, v in sorted_items]
-        else:
-            top_drivers = []
-    except Exception:
-        importances = {}
-        top_drivers = []
+    # 5️⃣ Compute and use feature importances
+    importances = get_feature_importances(model, FEATURES)
+
+    # 6️⃣ Generate recommendations
+    recommendations = generate_recommendations(behavior, importances)
+
+    # 7️⃣ Extract top drivers for UI
+    sorted_items = sorted(importances.items(), key=lambda x: x[1], reverse=True)[:5]
+    top_drivers = [{"feature": k, "importance": v} for k, v in sorted_items]
+
 
     # ✅ Now outside the try/except — this always runs
         # 7️⃣ Generate recommendations
@@ -222,31 +246,74 @@ def predict_and_recommend(payload: BehaviorPayload):
     print("🧠 Recommendations generated:", recommendations)
 
     # Analyze trends using history (history list from Firestore)
-    trend_insights = analyze_trends(behavior, history)
+   
+
+     # ✅ Your existing prediction pipeline
+    predicted_score = model.predict(X_df)[0]
+    print("🧠 Raw model prediction:", predicted_score)
+    importances = get_feature_importances(model, FEATURES)
+    recommendations = generate_recommendations(behavior, importances)
+    trend_insights = analyze_trends(history)
     print("📈 Trend insights:", trend_insights)
 
-    # 8️⃣ Save prediction + recs + trend insights to Firestore
-    # 8️⃣ Save prediction + recs + trend insights to Firestore
+    # --- NEW SECTION: compute advanced insights ---
+    history = get_user_behavior_and_predictions(user_id, limit=100)
+    feature_list = FEATURES.copy()  # ensure same feature order used in training
+
+    correlations = compute_feature_correlations(
+        history, feature_list, score_key="PredictedScore", method="pearson"
+    )
+    data_driven_recs = generate_data_driven_recommendations(correlations)
+    trend_summary = summarize_behavior_trends(history, feature_list)
+
+    print("🔍 Predicted score:", predicted_score)
+    print("🔍 Importances:", importances)
+    print("🔍 Recommendations:", recommendations)
+    print("🔍 Data-driven recommendations:", data_driven_recs)
+    print("🔍 Correlations:", correlations)
+    print("🔍 Trend summary:", trend_summary)
+
+    print("🧪 Has NaN in predicted_score?", math.isnan(predicted_score) if isinstance(predicted_score, float) else "N/A")
+
+
+
+
+    # --- Modified save call to include new fields ---
     save_prediction(
-        user_id,
-        predicted_score,
-        behavior,
-        importances,
-        recommendations,
+        user_id=user_id,
+        predicted_score=predicted_score,
+        behavior=behavior,
+        importances=importances,
+        recommendations=recommendations,  # rule-based
         timestamp=timestamp,
-        trend_insights=trend_insights
+        trend_insights=trend_insights, 
+        data_driven_recommendations=data_driven_recs,
+        correlation_stats=correlations,
+        trend_summary=trend_summary
     )
 
+    # ✅ Combine both rec systems in response if you want
+    all_recs = list(set(recommendations + data_driven_recs))
+
+    result_payload = {
+    "predicted_score": predicted_score,
+    "recommendations": all_recs,
+    "trend_insights": trend_insights,
+    "saved": True,
+    "top_drivers": importances,
+    "correlations": correlations,
+    "trend_summary": trend_summary,
+}
+   
+
+    # 🧹 Clean NaN/inf values for JSON serialization
+    clean_result = sanitize_for_json(result_payload)
+    print("🧹 Sanitized result payload:", clean_result)
+
+    return clean_result
 
 
-    # 9️⃣ Return response (include trend_insights)
-    return {
-        "predicted_score": predicted_score,
-        "top_drivers": top_drivers,
-        "recommendations": recommendations,
-        "trend_insights": trend_insights,
-        "saved": True
-    }
+
 @app.get("/get_latest_prediction/{user_id}")
 def get_latest_prediction_endpoint(user_id: str):
     """Return the most recent prediction and recommendations for a given user."""
