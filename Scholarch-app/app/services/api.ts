@@ -31,8 +31,20 @@ apiClient.interceptors.response.use(
   }
 );
 
-export default apiClient;
 
+
+/* ---------------- Types ---------------- */
+export interface PredictionResponse {
+  predicted_score: number;
+  recommendations: string[];
+  trend_insights?: string[];
+  trend_summary?: Record<string, any>;
+  correlations?: Record<string, number | null>;
+  top_drivers?: Record<string, number>;
+  saved?: boolean;
+  timestamp?: string;
+  user_id?: string;
+}
 
 // 1️⃣ Send behavior data for prediction
 export const predictAndRecommend = async (userId: string, behaviorData: Record<string, any>) => {
@@ -62,3 +74,23 @@ export const getLatestPrediction = async (userId: string) => {
     throw error;
   }
 };
+
+// 3) Get prediction history (optional endpoint if your backend exposes it)
+// export const getPredictionHistory = async (userId: string): Promise<PredictionResponse[]> => {
+//   const response = await apiClient.get<PredictionResponse[]>(`/get_prediction_history/${userId}`);
+//   return response.data;
+// };
+
+// 4) If you want to fetch analytics specifically (optional)
+export const getCorrelations = async (userId: string): Promise<Record<string, number | null>> => {
+  const response = await apiClient.get<Record<string, number | null>>(`/analytics/correlations/${userId}`);
+  return response.data;
+};
+
+export const getTrendSummary = async (userId: string): Promise<Record<string, any>> => {
+  const response = await apiClient.get<Record<string, any>>(`/analytics/trend_summary/${userId}`);
+  return response.data;
+};
+
+
+export default apiClient;
