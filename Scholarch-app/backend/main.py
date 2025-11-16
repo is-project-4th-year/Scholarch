@@ -17,6 +17,97 @@ from firestore_client import save_behavior_to_firestore, get_user_behavior_histo
 from dotenv import load_dotenv
 load_dotenv()
 
+
+def compute_trend_summary(history):
+    """
+    Aggregates multi-record trends from user history.
+    Produces a concise dictionary showing feature averages and direction of change.
+    """
+    if not history or len(history) < 2:
+        return {}
+
+    # ✅ Convert history to DataFrame
+    df = pd.DataFrame(history)
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+
+    summary = {}
+    for col in numeric_cols:
+        series = df[col].dropna().astype(float)
+        if len(series) < 2:
+            continue
+
+        mean_val = float(series.mean())
+        delta = float(series.iloc[-1] - series.iloc[0])
+        trend = (
+            "increasing" if delta > 0.05 * mean_val
+            else "decreasing" if delta < -0.05 * mean_val
+            else "stable"
+        )
+
+        summary[col] = {
+            "mean": round(mean_val, 2),
+            "trend": trend
+        }
+
+    print("📊 Trend summary generated:", summary)
+    return summary
+
+# --- Correlation Analysis Helper ---
+def compute_correlations(user_id: str):
+    """
+    Compute correlations between a user's behavior features and their predicted scores.
+    Returns a dictionary like {"StudyHours": 0.72, "StressLevel": -0.44, ...}
+    """
+
+    try:
+        from firestore_client import get_user_behavior_history
+        import pandas as pd
+        import numpy as np
+
+        # 1️⃣ Fetch user's behavior + predictions history
+        history = get_user_behavior_history(user_id, limit=50)  # you can adjust limit
+
+        if not history or len(history) < 3:
+            print("⚠️ Not enough records to compute correlation.")
+            return {}
+
+        # 2️⃣ Convert to DataFrame
+        df = pd.DataFrame(history)
+
+        # Expect structure like: {"StudyHours": 12, "Attendance": 90, ..., "predicted_score": 75}
+        if "predicted_score" not in df.columns:
+            print("⚠️ No predicted_score found in history — skipping correlation computation.")
+            return {}
+
+        # 3️⃣ Keep only numeric columns
+        numeric_df = df.select_dtypes(include=[np.number])
+
+        # 4️⃣ Compute correlation matrix
+        corr_matrix = numeric_df.corr()
+
+        if "predicted_score" not in corr_matrix.columns:
+            return {}
+
+        correlations = corr_matrix["predicted_score"].drop("predicted_score").to_dict()
+
+        # 5️⃣ Clean NaN / inf
+        correlations = {
+            k: (0 if (pd.isna(v) or np.isinf(v)) else round(float(v), 3))
+            for k, v in correlations.items()
+        }
+
+        # 6️⃣ (Optional) Save back to Firestore under analytics
+        from firestore_client import db
+        db.collection("users").document(user_id).collection("analytics").document("correlations").set(correlations)
+        print(f"📊 Correlation analytics saved for user: {user_id}")
+
+        return correlations
+
+    except Exception as e:
+        print("❌ Error computing correlations:", e)
+        return {}
+
+
 def sanitize_for_json(obj):
     """Recursively replace NaN, inf, -inf with None in dicts/lists."""
     if isinstance(obj, dict):
@@ -255,14 +346,20 @@ def predict_and_recommend(payload: BehaviorPayload):
     recommendations = generate_recommendations(behavior, importances)
     trend_insights = analyze_trends(history)
     print("📈 Trend insights:", trend_insights)
+    trend_summary = compute_trend_summary(history)
+    print("📊 Trend summary:", trend_summary)
 
     # --- NEW SECTION: compute advanced insights ---
     history = get_user_behavior_and_predictions(user_id, limit=100)
     feature_list = FEATURES.copy()  # ensure same feature order used in training
 
-    correlations = compute_feature_correlations(
-        history, feature_list, score_key="PredictedScore", method="pearson"
-    )
+    history = get_user_behavior_history(user_id)
+    print("📜 Retrieved history size:", len(history))
+
+    #  🔍 Compute correlation analytics
+    correlations = compute_correlations(user_id)
+
+
     data_driven_recs = generate_data_driven_recommendations(correlations)
     trend_summary = summarize_behavior_trends(history, feature_list)
 
