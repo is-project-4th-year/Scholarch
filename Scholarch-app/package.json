@@ -48,6 +48,7 @@
     "react-native-svg": "^15.14.0",
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
+    "recharts": "^3.4.1",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
