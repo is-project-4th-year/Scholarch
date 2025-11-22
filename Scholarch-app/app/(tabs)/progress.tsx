@@ -15,6 +15,7 @@ import { LineChart } from 'react-native-chart-kit';
 import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 import { auth, db } from "@/lib/FirebaseConfig";
 import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface Prediction {
   predicted_score: number;
@@ -254,6 +255,7 @@ export default function ProgressPage() {
   }
 
   return (
+    
     <ScrollView
       style={styles.container}
       showsVerticalScrollIndicator={false}
@@ -394,6 +396,8 @@ export default function ProgressPage() {
         </View>
       </View>
     </ScrollView>
+    
+    
   );
 }
 

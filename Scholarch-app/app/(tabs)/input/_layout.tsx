@@ -4,6 +4,7 @@ import { Stack, useRouter } from "expo-router";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../../../lib/FirebaseConfig";
 import { useAuthStore } from "../../../stores/authStore";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function InputLayout() {
   const router = useRouter();
@@ -38,19 +39,25 @@ export default function InputLayout() {
   // Show a loader while checking
   if (loading) {
     return (
-      <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
+      
+        <View style={styles.loaderContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      
+      
     );
   }
 
   // A fallback Stack if needed (Expo Router requirement)
   return (
-    <Stack
+    
+       <Stack
       screenOptions={{
         headerShown: false,
       }}
     />
+   
+   
   );
 }
 

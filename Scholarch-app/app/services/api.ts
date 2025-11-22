@@ -1,8 +1,12 @@
 import axios from "axios";
 
+import Constants from "expo-constants";
+
+
 // ⚠️ IMPORTANT: If testing with Expo on a physical phone,
 // replace 127.0.0.1 with your local IP address (e.g., 192.168.x.x)
-const API_BASE_URL = "http://10.0.2.2:8000";
+
+const API_BASE_URL = "http://192.168.100.114:8000";
 
 // Create a reusable Axios instance
 const apiClient = axios.create({
@@ -90,6 +94,17 @@ export const getCorrelations = async (userId: string): Promise<Record<string, nu
 export const getTrendSummary = async (userId: string): Promise<Record<string, any>> => {
   const response = await apiClient.get<Record<string, any>>(`/analytics/trend_summary/${userId}`);
   return response.data;
+};
+
+
+export const getUserProfile = async (userId: string) => {
+  try {
+    const response = await apiClient.get(`/get_user_profile/${userId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("❌ Error fetching user profile:", error);
+    return null;
+  }
 };
 
 
