@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+pandas
+numpy
+scikit-learn
+joblib
+firebase-admin
+python-dotenv
+google-cloud-firestore
