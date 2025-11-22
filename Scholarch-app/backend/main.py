@@ -12,6 +12,8 @@ import math
 
 # Firestore helpers (your module)
 from firestore_client import save_behavior_to_firestore, get_user_behavior_history, save_prediction
+from fastapi.middleware.cors import CORSMiddleware
+
 
 # Load env (if using .env)
 from dotenv import load_dotenv
@@ -196,6 +198,14 @@ def generate_recommendations(behavior: dict, importances: dict):
 
 
 app = FastAPI(title="Scholarch ML API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- Load model pipeline once at startup ---
 PIPELINE_PATH = os.path.join(os.path.dirname(__file__), "model_pipeline.pkl")
@@ -410,6 +420,22 @@ def predict_and_recommend(payload: BehaviorPayload):
     return clean_result
 
 
+@app.get("/get_user_profile/{user_id}")
+def get_user_profile(user_id: str):
+    from firestore_client import db
+
+    try:
+        doc = db.collection("users").document(user_id).collection("profile").document("info").get()
+        if not doc.exists:
+            return {"name": "Student"}
+        
+        data = doc.to_dict()
+        return {"name": data.get("name", "Student")}
+    except Exception as e:
+        print("❌ Error fetching profile:", e)
+        raise HTTPException(status_code=500, detail="Failed to load profile")
+
+
 
 @app.get("/get_latest_prediction/{user_id}")
 def get_latest_prediction_endpoint(user_id: str):
@@ -428,5 +454,7 @@ def get_latest_prediction_endpoint(user_id: str):
         "trend_insights": result.get("trend_insights", []),
         "timestamp": result.get("timestamp"),
     }
+
+    
 
 # Run with: uvicorn main:app --reload

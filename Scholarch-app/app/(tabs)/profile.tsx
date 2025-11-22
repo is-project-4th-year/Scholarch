@@ -18,6 +18,7 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firest
 import { db } from "@/lib/FirebaseConfig";// Adjust path if needed
 import { useAuthStore } from "@/stores/authStore"; // Zustand store
 import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function profile() {
     const router = useRouter();
@@ -121,7 +122,7 @@ export default function profile() {
     try {
       await signOut(auth);
       await useAuthStore.getState().logout();
-      router.replace("/auth/login"); // Redirect to login
+      router.push("/auth/login"); // Redirect to login
     } catch (error: any) {
       console.error("Logout error:", error);
       Alert.alert("Error", "Failed to log out.");
@@ -307,6 +308,7 @@ export default function profile() {
   }
 
   return (
+    
     <KeyboardAvoidingView 
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -329,7 +331,7 @@ export default function profile() {
         {/* Content */}
         <View style={styles.content}>
           
-           
+          
 
           {/* Form Section */}
           <View style={styles.formSection}>
@@ -428,6 +430,8 @@ export default function profile() {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+   
+    
   );
 }
 

@@ -15,6 +15,7 @@ import {
   stressLevelLabels,
   labelFor, 
 } from "@/lib/behaviorLabels";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface BehaviorData {
   StudyHours: number;
@@ -114,27 +115,31 @@ export default function SummaryScreen() {
   // Loading state
   if (loading) {
     return (
-      <View style={styles.container}>
-        <LinearGradient
-          colors={['#6366f1', '#8b5cf6']}
-          style={styles.header}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <Text style={styles.headerTitle}>Summary</Text>
-          <Text style={styles.headerSubtitle}>Your submitted data</Text>
-        </LinearGradient>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
-          <Text style={styles.loadingText}>Loading your data...</Text>
+      <SafeAreaView>
+          <View style={styles.container}>
+          <LinearGradient
+            colors={['#6366f1', '#8b5cf6']}
+            style={styles.header}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Text style={styles.headerTitle}>Summary</Text>
+            <Text style={styles.headerSubtitle}>Your submitted data</Text>
+          </LinearGradient>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#6366f1" />
+            <Text style={styles.loadingText}>Loading your data...</Text>
+          </View>
         </View>
-      </View>
+      </SafeAreaView>
+      
     );
   }
 
   // No data state
   if (!data) {
     return (
+      
       <View style={styles.container}>
         <LinearGradient
           colors={['#6366f1', '#8b5cf6']}
@@ -159,6 +164,8 @@ export default function SummaryScreen() {
           </TouchableOpacity>
         </View>
       </View>
+      
+      
     );
   }
 

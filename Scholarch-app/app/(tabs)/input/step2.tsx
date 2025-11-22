@@ -6,6 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useBehaviorFormStore } from "@/stores/behaviorFormStore";
 import { router } from "expo-router";
 import { yesNoLabels, stressLevelLabels } from "@/lib/behaviorLabels";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Step2() {
   const {
@@ -61,6 +62,7 @@ export default function Step2() {
   );
 
   return (
+    
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
@@ -206,6 +208,8 @@ export default function Step2() {
         </View>
       </ScrollView>
     </View>
+    
+   
   );
 }
 

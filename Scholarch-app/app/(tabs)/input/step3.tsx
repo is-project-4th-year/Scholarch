@@ -16,6 +16,7 @@ import {
   stressLevelLabels,
   labelFor,
 } from "@/lib/behaviorLabels";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Step3() {
   const formData = useBehaviorFormStore.getState().getCleanData();
@@ -114,6 +115,7 @@ export default function Step3() {
   );
 
   return (
+    
     <View style={styles.container}>
       {/* Header */}
       <LinearGradient
@@ -260,6 +262,8 @@ export default function Step3() {
         </View>
       </ScrollView>
     </View>
+    
+    
   );
 }
 
